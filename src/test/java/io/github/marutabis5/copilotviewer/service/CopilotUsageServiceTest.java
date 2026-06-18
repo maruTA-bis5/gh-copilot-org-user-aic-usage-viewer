@@ -11,9 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -26,8 +24,8 @@ import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for {@link CopilotUsageService}.
- * The CDI injection of {@code GitHubApiUsageRepository} and {@code org}
- * is fulfilled via Mockito + reflection.
+ * The CDI injection of {@code GitHubApiUsageRepository} is fulfilled via Mockito;
+ * {@code org} is assigned directly (same package, package-private field).
  */
 @ExtendWith(MockitoExtension.class)
 class CopilotUsageServiceTest {
@@ -41,10 +39,8 @@ class CopilotUsageServiceTest {
     private static final String TEST_ORG = "test-org";
 
     @BeforeEach
-    void injectOrg() throws Exception {
-        Field f = CopilotUsageService.class.getDeclaredField("org");
-        f.setAccessible(true);
-        f.set(service, TEST_ORG);
+    void injectOrg() {
+        service.org = TEST_ORG;
     }
 
     // =========================================================================

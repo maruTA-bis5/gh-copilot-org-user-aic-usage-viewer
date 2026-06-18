@@ -89,3 +89,7 @@ webapp/
 `GET /organizations/{org}/settings/billing/ai_credit/usage`  
 GitHub API version: **2026-03-10**  
 Required permission: **Organization administration: read**
+
+## License
+
+[MIT](LICENSE) © 2026 Takayuki Maruyama

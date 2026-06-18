@@ -1,7 +1,6 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * One line item from the GitHub Billing AI Credit usage API response.
@@ -32,7 +31,6 @@ public class UsageItemDto {
     public String getModel() { return model; }
     public void setModel(String model) { this.model = model; }
 
-    @JsonProperty("unitType")
     public String getUnitType() { return unitType; }
     public void setUnitType(String unitType) { this.unitType = unitType; }
 

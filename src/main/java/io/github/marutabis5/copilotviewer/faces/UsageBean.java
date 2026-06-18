@@ -12,6 +12,7 @@ import jakarta.inject.Named;
 import org.jboss.logging.Logger;
 
 import java.io.Serializable;
+import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
@@ -33,7 +34,7 @@ public class UsageBean implements Serializable {
 
     // ---- Form inputs -------------------------------------------------------
     private String login;
-    private String yearMonth;
+    private YearMonth yearMonth;
 
     // ---- View state --------------------------------------------------------
     private MonthlyUsageReport report;
@@ -53,7 +54,7 @@ public class UsageBean implements Serializable {
         report = null;
 
         try {
-            report = usageService.findUsage(login, yearMonth);
+            report = usageService.findUsage(login, yearMonth != null ? yearMonth.toString() : null);
         } catch (ValidationException e) {
             ctx.addMessage(null, new FacesMessage(
                     FacesMessage.SEVERITY_WARN,
@@ -102,8 +103,8 @@ public class UsageBean implements Serializable {
     public String getLogin() { return login; }
     public void setLogin(String login) { this.login = login; }
 
-    public String getYearMonth() { return yearMonth; }
-    public void setYearMonth(String yearMonth) { this.yearMonth = yearMonth; }
+    public YearMonth getYearMonth() { return yearMonth; }
+    public void setYearMonth(YearMonth yearMonth) { this.yearMonth = yearMonth; }
 
     public MonthlyUsageReport getReport() { return report; }
 }

@@ -10,12 +10,14 @@ import io.github.marutabis5.copilotviewer.service.GitHubApiException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
+import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,23 +27,24 @@ import java.util.List;
  *
  * <p>Because the API does not support a date range in a single call, one
  * request is made per calendar day in the requested month.
- * Each request is retried up to <em>2</em> times with exponential back-off
- * (1 s → 2 s) on HTTP 429 or 5xx responses.</p>
+ * Each request is retried up to <em>2</em> times with a 1-second delay
+ * on HTTP 429 or 5xx responses using MicroProfile Fault Tolerance {@link Retry}.</p>
  */
 @ApplicationScoped
 public class GitHubApiUsageRepository implements UsageRepository {
 
     private static final Logger LOG = Logger.getLogger(GitHubApiUsageRepository.class);
 
-    /** Statuses that warrant a retry. */
+    /** Statuses that warrant a retry (delegated to {@link Retry} via rethrowing). */
     private static final int[] RETRYABLE_STATUSES = {429, 500, 502, 503, 504};
-
-    static final int MAX_RETRIES = 2;
-    static final long INITIAL_BACKOFF_MS = 1_000L;
 
     @Inject
     @RestClient
     GitHubBillingClient billingClient;
+
+    /** Self-reference via CDI proxy so that {@link Retry} interceptors are applied. */
+    @Inject
+    GitHubApiUsageRepository self;
 
     @Override
     public MonthlyUsageReport findByOrgAndUserAndMonth(String org,
@@ -53,8 +56,18 @@ public class GitHubApiUsageRepository implements UsageRepository {
         List<DailyUsage> dailyUsages = new ArrayList<>();
 
         for (LocalDate date = firstDay; !date.isAfter(lastDay); date = date.plusDays(1)) {
-            AiCreditUsageResponse response = fetchDayWithRetry(
-                    org, login, date.getYear(), date.getMonthValue(), date.getDayOfMonth());
+            AiCreditUsageResponse response;
+            try {
+                response = self.fetchDayWithRetry(
+                        org, login, date.getYear(), date.getMonthValue(), date.getDayOfMonth());
+            } catch (WebApplicationException ex) {
+                // Retries exhausted – convert to a safe exception with no token exposure.
+                int status = ex.getResponse().getStatus();
+                String summary = buildSafeSummary(status);
+                LOG.errorf("GitHub API failed for %s/%s %s after retries. HTTP %d: %s",
+                        org, login, date, status, summary);
+                throw new GitHubApiException(status, summary, ex);
+            }
 
             List<UsageItem> items = mapItems(response);
             if (!items.isEmpty()) {
@@ -70,41 +83,30 @@ public class GitHubApiUsageRepository implements UsageRepository {
     // -------------------------------------------------------------------------
 
     /**
-     * Calls the GitHub API for a single day, retrying on transient failures
-     * with exponential back-off.
+     * Calls the GitHub API for a single day.
+     * Retryable failures (HTTP 429 / 5xx) rethrow the {@link WebApplicationException}
+     * so that the MicroProfile Fault Tolerance {@link Retry} interceptor can retry.
+     * Non-retryable failures (other 4xx) throw {@link GitHubApiException} directly,
+     * which is not in {@code retryOn} and therefore aborts immediately.
      */
+    @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
+           retryOn = WebApplicationException.class, jitter = 0)
     AiCreditUsageResponse fetchDayWithRetry(String org, String login,
                                             int year, int month, int day) {
-        long backoffMs = INITIAL_BACKOFF_MS;
-        WebApplicationException lastException = null;
-
-        for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                return billingClient.getAiCreditUsage(org, year, month, day, login);
-            } catch (WebApplicationException ex) {
-                int status = ex.getResponse().getStatus();
-                lastException = ex;
-
-                if (attempt < MAX_RETRIES && isRetryable(status)) {
-                    LOG.warnf("GitHub API HTTP %d for %s/%s %04d-%02d-%02d "
-                                    + "(attempt %d/%d). Retrying in %d ms...",
-                            status, org, login, year, month, day,
-                            attempt + 1, MAX_RETRIES + 1, backoffMs);
-                    sleepForTest(backoffMs);
-                    backoffMs *= 2;
-                } else {
-                    String summary = buildSafeSummary(status);
-                    LOG.errorf("GitHub API failed for %s/%s %04d-%02d-%02d "
-                                    + "after %d retries. HTTP %d: %s",
-                            org, login, year, month, day, attempt, status, summary);
-                    throw new GitHubApiException(status, summary, ex);
-                }
+        try {
+            return billingClient.getAiCreditUsage(org, year, month, day, login);
+        } catch (WebApplicationException ex) {
+            int status = ex.getResponse().getStatus();
+            if (isRetryable(status)) {
+                LOG.warnf("GitHub API HTTP %d for %s/%s %04d-%02d-%02d, will retry...",
+                        status, org, login, year, month, day);
+                throw ex;
             }
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API non-retryable error for %s/%s %04d-%02d-%02d. HTTP %d: %s",
+                    org, login, year, month, day, status, summary);
+            throw new GitHubApiException(status, summary, ex);
         }
-
-        // Unreachable, but keeps the compiler happy.
-        int status = lastException != null ? lastException.getResponse().getStatus() : -1;
-        throw new GitHubApiException(status, buildSafeSummary(status));
     }
 
     private static List<UsageItem> mapItems(AiCreditUsageResponse response) {
@@ -147,17 +149,5 @@ public class GitHubApiUsageRepository implements UsageRepository {
 
     private static String nullToEmpty(String value) {
         return value != null ? value : "";
-    }
-
-    /**
-     * Sleeps for the given number of milliseconds between retries.
-     * Overridable in tests (via anonymous subclass) to eliminate real delays.
-     */
-    void sleepForTest(long ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-        }
     }
 }

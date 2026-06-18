@@ -12,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -22,8 +21,12 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for {@link GitHubApiUsageRepository}, focusing on retry logic
- * and response mapping.
+ * Unit tests for {@link GitHubApiUsageRepository}.
+ *
+ * <p>Retry behaviour is provided by the MicroProfile Fault Tolerance
+ * {@code @Retry} interceptor and is therefore not exercised here (no CDI
+ * container in unit tests).  These tests focus on exception routing
+ * (retryable vs. non-retryable status codes) and response mapping.</p>
  */
 @ExtendWith(MockitoExtension.class)
 class GitHubApiUsageRepositoryTest {
@@ -33,6 +36,13 @@ class GitHubApiUsageRepositoryTest {
 
     @InjectMocks
     GitHubApiUsageRepository repository;
+
+    @BeforeEach
+    void setUp() {
+        // Self-reference needed for CDI proxy invocation in production;
+        // in unit tests we point self at the plain instance (no @Retry applied).
+        repository.self = repository;
+    }
 
     // =========================================================================
     // fetchDayWithRetry – success path
@@ -53,74 +63,34 @@ class GitHubApiUsageRepositoryTest {
     }
 
     // =========================================================================
-    // fetchDayWithRetry – retry logic
+    // fetchDayWithRetry – exception routing
     // =========================================================================
 
     @Test
-    void fetchDay_retries_on_429_then_succeeds() {
-        // Pre-create exceptions BEFORE starting any when() chain to avoid
-        // UnfinishedStubbing caused by nested mock/when() calls.
+    void fetchDay_rethrows_WebApplicationException_on_429() {
+        // Retryable statuses rethrow WebApplicationException so that
+        // the @Retry interceptor can retry the call in production.
         WebApplicationException ex = webAppException(429);
-        AiCreditUsageResponse resp = buildResponse(10, 1.0);
-
         when(billingClient.getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString()))
-                .thenThrow(ex)
-                .thenReturn(resp);
+                .thenThrow(ex);
 
-        GitHubApiUsageRepository fast = fastRepo();
-
-        AiCreditUsageResponse result = fast.fetchDayWithRetry("org", "user", 2025, 1, 1);
-
-        assertThat(result).isSameAs(resp);
-        verify(billingClient, times(2))
-                .getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString());
+        assertThatThrownBy(() -> repository.fetchDayWithRetry("org", "user", 2025, 1, 1))
+                .isInstanceOf(WebApplicationException.class);
     }
 
     @Test
-    void fetchDay_retries_on_503_then_succeeds() {
-        WebApplicationException ex = webAppException(503);
-        AiCreditUsageResponse resp = buildResponse(5, 0.5);
-
+    void fetchDay_rethrows_WebApplicationException_on_500() {
+        WebApplicationException ex = webAppException(500);
         when(billingClient.getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString()))
-                .thenThrow(ex)
-                .thenReturn(resp);
+                .thenThrow(ex);
 
-        GitHubApiUsageRepository fast = fastRepo();
-
-        AiCreditUsageResponse result = fast.fetchDayWithRetry("org", "user", 2025, 1, 1);
-
-        assertThat(result).isSameAs(resp);
-        verify(billingClient, times(2))
-                .getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString());
+        assertThatThrownBy(() -> repository.fetchDayWithRetry("org", "user", 2025, 1, 1))
+                .isInstanceOf(WebApplicationException.class);
     }
 
     @Test
-    void fetchDay_exhausts_retries_and_throws_GitHubApiException() {
-        WebApplicationException ex1 = webAppException(500);
-        WebApplicationException ex2 = webAppException(500);
-        WebApplicationException ex3 = webAppException(500);
-
-        when(billingClient.getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString()))
-                .thenThrow(ex1)
-                .thenThrow(ex2)
-                .thenThrow(ex3);
-
-        GitHubApiUsageRepository fast = fastRepo();
-
-        assertThatThrownBy(() -> fast.fetchDayWithRetry("org", "user", 2025, 1, 1))
-                .isInstanceOf(GitHubApiException.class)
-                .extracting(e -> ((GitHubApiException) e).getHttpStatus())
-                .isEqualTo(500);
-
-        // 1 initial + 2 retries = 3 total calls
-        verify(billingClient, times(GitHubApiUsageRepository.MAX_RETRIES + 1))
-                .getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString());
-    }
-
-    @Test
-    void fetchDay_does_not_retry_on_403() {
+    void fetchDay_throws_GitHubApiException_on_403() {
         WebApplicationException ex = webAppException(403);
-
         when(billingClient.getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString()))
                 .thenThrow(ex);
 
@@ -129,15 +99,13 @@ class GitHubApiUsageRepositoryTest {
                 .extracting(e -> ((GitHubApiException) e).getHttpStatus())
                 .isEqualTo(403);
 
-        // Must not retry on non-retryable status
         verify(billingClient, times(1))
                 .getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString());
     }
 
     @Test
-    void fetchDay_does_not_retry_on_404() {
+    void fetchDay_throws_GitHubApiException_on_404() {
         WebApplicationException ex = webAppException(404);
-
         when(billingClient.getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString()))
                 .thenThrow(ex);
 
@@ -151,8 +119,24 @@ class GitHubApiUsageRepositoryTest {
     }
 
     // =========================================================================
-    // findByOrgAndUserAndMonth – month boundary
+    // findByOrgAndUserAndMonth – month boundary and error propagation
     // =========================================================================
+
+    @Test
+    void findByOrgAndUserAndMonth_wraps_exhausted_retry_as_GitHubApiException() {
+        // After @Retry exhausts retries, WebApplicationException propagates to
+        // findByOrgAndUserAndMonth, which must wrap it as GitHubApiException.
+        // In unit tests (no CDI), self.fetchDayWithRetry() == repository.fetchDayWithRetry(),
+        // so a retryable status rethrows WebApplicationException immediately.
+        WebApplicationException ex = webAppException(429);
+        when(billingClient.getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString()))
+                .thenThrow(ex);
+
+        assertThatThrownBy(() -> repository.findByOrgAndUserAndMonth("org", "user", YearMonth.of(2025, 1)))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus())
+                .isEqualTo(429);
+    }
 
     @Test
     void findByOrgAndUserAndMonth_skips_days_with_empty_usageItems() {
@@ -225,25 +209,5 @@ class GitHubApiUsageRepositoryTest {
         lenient().when(resp.getStatus()).thenReturn(status);
         lenient().when(resp.getStatusInfo()).thenReturn(statusInfo);
         return new WebApplicationException(resp);
-    }
-
-    /** Returns a GitHubApiUsageRepository that skips real sleep delays. */
-    private GitHubApiUsageRepository fastRepo() {
-        GitHubApiUsageRepository fast = new GitHubApiUsageRepository() {
-            @Override
-            void sleepForTest(long ms) { /* no-op */ }
-        };
-        injectClient(fast);
-        return fast;
-    }
-
-    private void injectClient(GitHubApiUsageRepository repo) {
-        try {
-            Field f = GitHubApiUsageRepository.class.getDeclaredField("billingClient");
-            f.setAccessible(true);
-            f.set(repo, billingClient);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 }
