@@ -197,7 +197,7 @@ class GitHubApiUsageRepositoryTest {
         UsageItemDto dto = new UsageItemDto();
         dto.setProduct("Copilot");
         dto.setSku("AI Credits");
-        dto.setModel("GPT-5");
+        dto.setModel("gpt-4o");
         dto.setUnitType("credits");
         dto.setGrossQuantity(qty);
         dto.setNetQuantity(qty);

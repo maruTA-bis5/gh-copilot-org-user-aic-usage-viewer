@@ -137,7 +137,7 @@ class CopilotUsageServiceTest {
     // =========================================================================
 
     private static MonthlyUsageReport buildReport(String login, YearMonth ym) {
-        UsageItem item = new UsageItem("Copilot", "AI Credits", "GPT-5",
+        UsageItem item = new UsageItem("Copilot", "AI Credits", "gpt-4o",
                 "credits", 100, 0, 100, 1.0);
         DailyUsage day = new DailyUsage(ym.atDay(1), List.of(item));
         return new MonthlyUsageReport(TEST_ORG, login, ym, List.of(day), Instant.now());
