@@ -1,6 +1,7 @@
 package io.github.marutabis5.copilotviewer.domain.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -17,7 +18,7 @@ public final class DailyUsage {
     public DailyUsage(LocalDate date, List<UsageItem> items) {
         this.date = Objects.requireNonNull(date, "date must not be null");
         this.items = Collections.unmodifiableList(
-                Objects.requireNonNull(items, "items must not be null"));
+                new ArrayList<>(Objects.requireNonNull(items, "items must not be null")));
     }
 
     public LocalDate getDate() { return date; }

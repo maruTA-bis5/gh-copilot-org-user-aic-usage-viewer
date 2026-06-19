@@ -53,7 +53,7 @@
                 <p:commandButton value="Search"
                                  icon="pi pi-search"
                                  action="#{usageBean.search}"
-                                 update="messages resultPanel"
+                                 update=":messages :resultPanel"
                                  styleClass="ui-button-raised" />
             </h:form>
 
@@ -61,14 +61,14 @@
             <p:outputPanel id="resultPanel">
 
                 <!-- No data -->
-                <p:panel rendered="#{usageBean.noData}"
+                <p:panel rendered="#{usageBean.noData and not facesContext.validationFailed}"
                          style="margin-top:1.5rem;">
                     <p:outputLabel value="No usage data found for the specified user and month."
                                    style="color:#6c757d;" />
                 </p:panel>
 
                 <!-- Has data -->
-                <ui:fragment rendered="#{usageBean.hasData}">
+                <ui:fragment rendered="#{usageBean.hasData and not facesContext.validationFailed}">
                     <p:panel header="Usage Report" style="margin-top:1.5rem;">
 
                         <!-- Summary cards -->

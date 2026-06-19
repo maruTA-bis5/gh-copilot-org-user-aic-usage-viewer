@@ -53,19 +53,20 @@ public class CopilotUsageService {
     public MonthlyUsageReport findUsage(String loginRaw, String yearMonthRaw) {
         String login    = validateLogin(loginRaw);
         YearMonth ym    = validateYearMonth(yearMonthRaw);
+        String orgValue = validateOrg(org);
 
         UsageRepository repository = selectRepository(ym);
 
         LOG.infof("Usage query started: org=%s, user=%s, yearMonth=%s",
-                org, login, ym);
+                orgValue, login, ym);
         long startNs = System.nanoTime();
 
-        MonthlyUsageReport report = repository.findByOrgAndUserAndMonth(org, login, ym);
+        MonthlyUsageReport report = repository.findByOrgAndUserAndMonth(orgValue, login, ym);
 
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
         LOG.infof("Usage query completed: org=%s, user=%s, yearMonth=%s, "
                         + "activeDays=%d, totalNetQuantity=%.4f, elapsedMs=%d",
-                org, login, ym,
+                orgValue, login, ym,
                 report.getDailyUsages().size(),
                 report.getTotalNetQuantity(),
                 elapsedMs);
@@ -76,6 +77,13 @@ public class CopilotUsageService {
     // -------------------------------------------------------------------------
     // Validation
     // -------------------------------------------------------------------------
+
+    static String validateOrg(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new ValidationException("GitHub organization must not be empty.");
+        }
+        return raw.trim();
+    }
 
     static String validateLogin(String raw) {
         if (raw == null || raw.isBlank()) {

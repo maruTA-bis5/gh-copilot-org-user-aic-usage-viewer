@@ -50,14 +50,17 @@ public final class UsageItem {
         if (!(o instanceof UsageItem that)) return false;
         return Double.compare(netQuantity, that.netQuantity) == 0
                 && Double.compare(netAmount, that.netAmount) == 0
+                && Double.compare(grossQuantity, that.grossQuantity) == 0
+                && Double.compare(discountQuantity, that.discountQuantity) == 0
                 && Objects.equals(product, that.product)
                 && Objects.equals(sku, that.sku)
-                && Objects.equals(model, that.model);
+                && Objects.equals(model, that.model)
+                && Objects.equals(unitType, that.unitType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(product, sku, model, netQuantity, netAmount);
+        return Objects.hash(product, sku, model, unitType, grossQuantity, discountQuantity, netQuantity, netAmount);
     }
 
     @Override

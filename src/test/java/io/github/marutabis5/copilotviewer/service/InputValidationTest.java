@@ -59,9 +59,9 @@ class InputValidationTest {
 
     @Test
     void yearMonth_current_month_is_accepted() {
-        String current = YearMonth.now(ZoneOffset.UTC).toString(); // "YYYY-MM"
-        YearMonth result = CopilotUsageService.validateYearMonth(current);
-        assertThat(result).isEqualTo(YearMonth.now(ZoneOffset.UTC));
+        YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
+        YearMonth result = CopilotUsageService.validateYearMonth(currentMonth.toString()); // "YYYY-MM"
+        assertThat(result).isEqualTo(currentMonth);
     }
 
     @Test

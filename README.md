@@ -62,7 +62,7 @@ domain/
 
 infrastructure/
   github/         – GitHubBillingClient (MicroProfile REST Client)
-                    GitHubApiUsageRepository (live API, exponential-backoff retry)
+                    GitHubApiUsageRepository (live API, fixed-delay retry)
   sqlite/         – SqliteUsageRepository (stub; ready for future implementation)
 
 service/
@@ -81,7 +81,7 @@ webapp/
 
 * **`UsageRepository` interface** – swappable between `GitHubApiUsageRepository` (MVP) and a future `SqliteUsageRepository` without touching the service layer.
 * **Per-day API calls** – the GitHub AI-credit usage API (`GET /organizations/{org}/settings/billing/ai_credit/usage`) is called once per day of the requested month to produce a daily breakdown.
-* **Exponential-backoff retry** – up to 2 retries on HTTP 429 / 5xx; non-retryable errors (4xx except 429) are surfaced immediately.
+* **Fixed-delay retry** – up to 2 retries with a fixed 1-second delay on HTTP 429 / 5xx; non-retryable errors (4xx except 429) are surfaced immediately.
 * **Token never exposed** – the PAT is injected server-side only; it is masked in logs and never sent to the browser.
 
 ## API reference

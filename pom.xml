@@ -22,7 +22,7 @@
     <sqlite.jdbc.version>3.47.1.0</sqlite.jdbc.version>
     <junit.jupiter.version>5.11.4</junit.jupiter.version>
     <mockito.version>5.14.2</mockito.version>
-    <assertj.version>3.26.3</assertj.version>
+    <assertj.version>3.27.7</assertj.version>
     <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
     <maven.surefire.plugin.version>3.5.2</maven.surefire.plugin.version>
     <maven.war.plugin.version>3.4.0</maven.war.plugin.version>

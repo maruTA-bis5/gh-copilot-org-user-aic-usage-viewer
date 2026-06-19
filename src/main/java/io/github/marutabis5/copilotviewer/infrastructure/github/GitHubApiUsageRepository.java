@@ -36,7 +36,9 @@ public class GitHubApiUsageRepository implements UsageRepository {
     private static final Logger LOG = Logger.getLogger(GitHubApiUsageRepository.class);
 
     /** Statuses that warrant a retry (delegated to {@link Retry} via rethrowing). */
-    private static final int[] RETRYABLE_STATUSES = {429, 500, 502, 503, 504};
+    private static boolean isRetryable(int status) {
+        return status == 429 || (status >= 500 && status <= 599);
+    }
 
     @Inject
     @RestClient
@@ -121,13 +123,6 @@ public class GitHubApiUsageRepository implements UsageRepository {
                         dto.getNetQuantity(),
                         dto.getNetAmount()))
                 .toList();
-    }
-
-    private static boolean isRetryable(int status) {
-        for (int s : RETRYABLE_STATUSES) {
-            if (s == status) return true;
-        }
-        return false;
     }
 
     /**

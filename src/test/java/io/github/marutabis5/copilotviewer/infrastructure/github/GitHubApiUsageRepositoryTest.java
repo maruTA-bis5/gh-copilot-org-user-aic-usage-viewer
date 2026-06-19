@@ -8,6 +8,8 @@ import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -78,9 +80,10 @@ class GitHubApiUsageRepositoryTest {
                 .isInstanceOf(WebApplicationException.class);
     }
 
-    @Test
-    void fetchDay_rethrows_WebApplicationException_on_500() {
-        WebApplicationException ex = webAppException(500);
+    @ParameterizedTest
+    @ValueSource(ints = {500, 501, 502, 503, 505})
+    void fetchDay_rethrows_WebApplicationException_on_5xx(int status) {
+        WebApplicationException ex = webAppException(status);
         when(billingClient.getAiCreditUsage(anyString(), anyInt(), anyInt(), anyInt(), anyString()))
                 .thenThrow(ex);
 

@@ -2,6 +2,7 @@ package io.github.marutabis5.copilotviewer.domain.model;
 
 import java.time.Instant;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -28,7 +29,7 @@ public final class MonthlyUsageReport {
         this.login = Objects.requireNonNull(login, "login must not be null");
         this.yearMonth = Objects.requireNonNull(yearMonth, "yearMonth must not be null");
         this.dailyUsages = Collections.unmodifiableList(
-                Objects.requireNonNull(dailyUsages, "dailyUsages must not be null"));
+                new ArrayList<>(Objects.requireNonNull(dailyUsages, "dailyUsages must not be null")));
         this.fetchedAt = Objects.requireNonNull(fetchedAt, "fetchedAt must not be null");
     }
 
