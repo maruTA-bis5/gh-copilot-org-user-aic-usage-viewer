@@ -4,11 +4,10 @@ import io.github.marutabis5.copilotviewer.domain.model.MonthlyUsageReport;
 import io.github.marutabis5.copilotviewer.service.CopilotUsageService;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
 import io.github.marutabis5.copilotviewer.service.ValidationException;
+import jakarta.enterprise.inject.Model;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
-import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import org.jboss.logging.Logger;
 
 import java.io.Serializable;
@@ -18,10 +17,8 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * JSF backing bean for the Copilot AI credit usage search page.
- * Scope is {@link ViewScoped}: state survives AJAX postbacks on the same view.
  */
-@Named
-@ViewScoped
+@Model
 public class UsageBean implements Serializable {
 
     private static final Logger LOG = Logger.getLogger(UsageBean.class);
