@@ -17,7 +17,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <wildfly.version>39.0.1.Final</wildfly.version>
-    <wildfly.jar.plugin.version>11.0.2.Final</wildfly.jar.plugin.version>
+    <wildfly.plugin.version>6.0.0.Final</wildfly.plugin.version>
     <primefaces.version>15.0.16</primefaces.version>
     <sqlite.jdbc.version>3.47.1.0</sqlite.jdbc.version>
     <junit.jupiter.version>5.11.4</junit.jupiter.version>
@@ -147,15 +147,23 @@
       <!-- WildFly Bootable JAR packaging -->
       <plugin>
         <groupId>org.wildfly.plugins</groupId>
-        <artifactId>wildfly-jar-maven-plugin</artifactId>
-        <version>${wildfly.jar.plugin.version}</version>
+        <artifactId>wildfly-maven-plugin</artifactId>
+        <version>${wildfly.plugin.version}</version>
         <configuration>
-          <feature-pack-location>wildfly@maven(org.jboss.universe:community-universe)#${wildfly.version}</feature-pack-location>
+          <feature-packs>
+            <feature-pack>
+              <location>wildfly@maven(org.jboss.universe:community-universe)#${wildfly.version}</location>
+            </feature-pack>
+          </feature-packs>
+	  <bootable-jar>true</bootable-jar>
           <layers>
+            <layer>logging</layer>
             <!-- Undertow web server -->
             <layer>web-server</layer>
             <!-- Jakarta Faces (Mojarra) -->
             <layer>jsf</layer>
+	    <!-- JAX-RS -->
+	    <layer>jaxrs</layer>
             <!-- MicroProfile Config (SmallRye) -->
             <layer>microprofile-config</layer>
             <!-- MicroProfile REST Client (SmallRye / RESTEasy) -->
@@ -163,9 +171,7 @@
             <!-- MicroProfile Fault Tolerance (SmallRye) -->
             <layer>microprofile-fault-tolerance</layer>
           </layers>
-          <excluded-layers>
-            <layer>deployment-scanner</layer>
-          </excluded-layers>
+	  <name>ROOT.war</name>
         </configuration>
         <executions>
           <execution>
