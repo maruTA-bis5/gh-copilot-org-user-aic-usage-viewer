@@ -40,12 +40,13 @@
                                  style="width:240px;" />
 
                     <p:outputLabel for="yearMonth" value="Year-Month (YYYY-MM):" />
-                    <p:inputText id="yearMonth"
+                    <p:datePicker id="yearMonth"
                                  value="#{usageBean.yearMonth}"
-                                 placeholder="e.g. 2025-06"
+				 view="month"
+				 pattern="yyyy-MM"
+				 yearRange="2025:2050"
                                  required="true"
                                  requiredMessage="Year-month is required."
-                                 maxlength="7"
                                  style="width:120px;" />
 
                 </p:panelGrid>
