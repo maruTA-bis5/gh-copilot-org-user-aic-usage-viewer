@@ -39,9 +39,14 @@ public final class MonthlyUsageReport {
     public List<DailyUsage> getDailyUsages() { return dailyUsages; }
     public Instant getFetchedAt() { return fetchedAt; }
 
-    /** Sum of net credit quantities across all days in the month. */
-    public double getTotalNetQuantity() {
-        return dailyUsages.stream().mapToDouble(DailyUsage::getTotalNetQuantity).sum();
+    /** Sum of gross credit quantities across all days in the month. */
+    public double getTotalGrossQuantity() {
+        return dailyUsages.stream().mapToDouble(DailyUsage::getTotalGrossQuantity).sum();
+    }
+
+    /** Sum of discount credit quantities across all days in the month. */
+    public double getTotalDiscountQuantity() {
+        return dailyUsages.stream().mapToDouble(DailyUsage::getTotalDiscountQuantity).sum();
     }
 
     /** Sum of net amounts (cost) across all days in the month. */
@@ -67,7 +72,7 @@ public final class MonthlyUsageReport {
 
     @Override
     public String toString() {
-        return "MonthlyUsageReport{org='%s', login='%s', yearMonth=%s, days=%d, totalNetQuantity=%.4f}"
-                .formatted(org, login, yearMonth, dailyUsages.size(), getTotalNetQuantity());
+        return "MonthlyUsageReport{org='%s', login='%s', yearMonth=%s, days=%d, totalGrossQuantity=%.4f}"
+                .formatted(org, login, yearMonth, dailyUsages.size(), getTotalGrossQuantity());
     }
 }

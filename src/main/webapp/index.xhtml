@@ -87,11 +87,19 @@
                             </div>
                             <div class="summary-card">
                                 <div class="value">
-                                    <h:outputText value="#{usageBean.report.totalNetQuantity}">
+                                    <h:outputText value="#{usageBean.report.totalGrossQuantity}">
                                         <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
                                     </h:outputText>
                                 </div>
-                                <div class="label">Total Credits (net)</div>
+                                <div class="label">Total Credits (gross)</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">
+                                    <h:outputText value="#{usageBean.report.totalDiscountQuantity}">
+                                        <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                    </h:outputText>
+                                </div>
+                                <div class="label">Total Included Credits</div>
                             </div>
                             <div class="summary-card">
                                 <div class="value">
@@ -99,7 +107,7 @@
                                         <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
                                     </h:outputText>
                                 </div>
-                                <div class="label">Total Amount (net)</div>
+                                <div class="label">Total Additional Amount</div>
                             </div>
                         </div>
 
@@ -109,6 +117,7 @@
                                      emptyMessage="No daily records."
                                      stripedRows="true"
                                      rowHover="true"
+                                     rowKey="#{day.date}"
                                      style="width:100%;">
 
                             <f:facet name="header">Daily Breakdown</f:facet>
@@ -117,15 +126,15 @@
                                 <h:outputText value="#{day.date}" />
                             </p:column>
 
-                            <p:column headerText="Net Credits"
-                                      sortBy="#{day.totalNetQuantity}"
+                            <p:column headerText="Gross Credits"
+                                      sortBy="#{day.totalGrossQuantity}"
                                       style="width:130px; text-align:right;">
-                                <h:outputText value="#{day.totalNetQuantity}">
+                                <h:outputText value="#{day.totalGrossQuantity}">
                                     <f:convertNumber maxFractionDigits="4" groupingUsed="true" />
                                 </h:outputText>
                             </p:column>
 
-                            <p:column headerText="Net Amount ($)"
+                            <p:column headerText="Additional Amount ($)"
                                       sortBy="#{day.totalNetAmount}"
                                       style="width:140px; text-align:right;">
                                 <h:outputText value="#{day.totalNetAmount}">
@@ -140,6 +149,7 @@
 
                             <p:rowExpansion>
                                 <p:dataTable value="#{day.items}" var="item"
+                                             rowKey="#{item.product}-#{item.sku}-#{item.model}"
                                              style="width:100%; background:#f8f9fa;">
                                     <p:column headerText="Product"  style="width:120px;">
                                         <h:outputText value="#{item.product}" />
@@ -163,12 +173,12 @@
                                             <f:convertNumber maxFractionDigits="4" />
                                         </h:outputText>
                                     </p:column>
-                                    <p:column headerText="Net Qty"  style="width:100px; text-align:right;">
+                                    <p:column headerText="Additional Qty"  style="width:100px; text-align:right;">
                                         <h:outputText value="#{item.netQuantity}">
                                             <f:convertNumber maxFractionDigits="4" />
                                         </h:outputText>
                                     </p:column>
-                                    <p:column headerText="Net Amt ($)" style="width:120px; text-align:right;">
+                                    <p:column headerText="Additional Amt ($)" style="width:120px; text-align:right;">
                                         <h:outputText value="#{item.netAmount}">
                                             <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
                                         </h:outputText>

@@ -65,10 +65,10 @@ public class CopilotUsageService {
 
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
         LOG.infof("Usage query completed: org=%s, user=%s, yearMonth=%s, "
-                        + "activeDays=%d, totalNetQuantity=%.4f, elapsedMs=%d",
+                        + "activeDays=%d, totalGrossQuantity=%.4f, elapsedMs=%d",
                 orgValue, login, ym,
                 report.getDailyUsages().size(),
-                report.getTotalNetQuantity(),
+                report.getTotalGrossQuantity(),
                 elapsedMs);
 
         return report;

@@ -25,9 +25,14 @@ public final class DailyUsage {
 
     public List<UsageItem> getItems() { return items; }
 
-    /** Sum of net credit quantities across all items for this day. */
-    public double getTotalNetQuantity() {
-        return items.stream().mapToDouble(UsageItem::getNetQuantity).sum();
+    /** Sum of gross credit quantities across all items for this day. */
+    public double getTotalGrossQuantity() {
+        return items.stream().mapToDouble(UsageItem::getGrossQuantity).sum();
+    }
+
+    /** Sum of discount credit quantities across all items for this day. */
+    public double getTotalDiscountQuantity() {
+        return items.stream().mapToDouble(UsageItem::getDiscountQuantity).sum();
     }
 
     /** Sum of net amounts (cost) across all items for this day. */
@@ -50,7 +55,7 @@ public final class DailyUsage {
 
     @Override
     public String toString() {
-        return "DailyUsage{date=%s, items=%d, totalNetQuantity=%.4f}"
-                .formatted(date, items.size(), getTotalNetQuantity());
+        return "DailyUsage{date=%s, items=%d, totalGrossQuantity=%.4f}"
+                .formatted(date, items.size(), getTotalGrossQuantity());
     }
 }
