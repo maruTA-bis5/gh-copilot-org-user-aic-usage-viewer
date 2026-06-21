@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:ui="jakarta.faces.facelets">
+<f:view transient="true">
+<h:head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Copilot AI Credit Usage Viewer</title>
+    <style>
+        body { font-family: sans-serif; margin: 1.5rem; background: #f8f9fa; }
+        .main-card { max-width: 960px; margin: 0 auto; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+        .summary-card { background: #fff; border: 1px solid #dee2e6; border-radius: 6px; padding: 1rem; text-align: center; }
+        .summary-card .value { font-size: 1.75rem; font-weight: bold; color: #0d6efd; }
+        .summary-card .label { font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem; }
+        .fetch-time { font-size: 0.8rem; color: #6c757d; text-align: right; margin-top: 0.5rem; }
+    </style>
+</h:head>
+<h:body>
+    <div class="main-card">
+        <p:panel header="GitHub Copilot AI Credit Usage Viewer">
+
+            <!-- Search form -->
+            <h:form id="searchForm">
+                <p:messages id="messages" showDetail="true" closable="true">
+			<p:autoUpdate />
+		</p:messages>
+
+                <p:panelGrid columns="2" styleClass="ui-panelgrid-blank"
+                             columnClasses="ui-grid-col-3,ui-grid-col-9"
+                             style="margin-bottom:1rem;">
+
+                    <p:outputLabel for="login" value="GitHub Login:" />
+                    <p:inputText id="login"
+                                 value="#{usageBean.login}"
+                                 placeholder="e.g. octocat"
+                                 required="true"
+                                 requiredMessage="GitHub login is required."
+                                 maxlength="39"
+                                 style="width:240px;" />
+
+                    <p:outputLabel for="yearMonth" value="Year-Month (YYYY-MM):" />
+                    <p:datePicker id="yearMonth"
+                                 value="#{usageBean.yearMonth}"
+				 view="month"
+				 pattern="yyyy-MM"
+				 yearRange="2025:2050"
+                                 required="true"
+                                 requiredMessage="Year-month is required."
+                                 style="width:120px;" />
+
+                </p:panelGrid>
+
+                <p:commandButton value="Search"
+                                 icon="pi pi-search"
+                                 action="#{usageBean.search}"
+                                 update="messages :resultPanel"
+                                 styleClass="ui-button-raised" />
+            </h:form>
+
+            <!-- Result area (AJAX-updated) -->
+            <p:outputPanel id="resultPanel">
+
+                <!-- No data -->
+                <p:panel rendered="#{usageBean.noData and not facesContext.validationFailed}"
+                         style="margin-top:1.5rem;">
+                    <p:outputLabel value="No usage data found for the specified user and month."
+                                   style="color:#6c757d;" />
+                </p:panel>
+
+                <!-- Has data -->
+                <ui:fragment rendered="#{usageBean.hasData and not facesContext.validationFailed}">
+                    <p:panel header="Usage Report" style="margin-top:1.5rem;">
+
+                        <!-- Summary cards -->
+                        <div class="summary-grid">
+                            <div class="summary-card">
+                                <div class="value">#{usageBean.report.org}</div>
+                                <div class="label">Organization</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">#{usageBean.report.login}</div>
+                                <div class="label">User</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">#{usageBean.report.yearMonth}</div>
+                                <div class="label">Period</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">
+                                    <h:outputText value="#{usageBean.report.totalGrossQuantity}">
+                                        <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                    </h:outputText>
+                                </div>
+                                <div class="label">Total Credits (gross)</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">
+                                    <h:outputText value="#{usageBean.report.totalDiscountQuantity}">
+                                        <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                    </h:outputText>
+                                </div>
+                                <div class="label">Total Included Credits</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">
+                                    <h:outputText value="#{usageBean.report.totalNetAmount}">
+                                        <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                    </h:outputText>
+                                </div>
+                                <div class="label">Total Additional Amount</div>
+                            </div>
+                        </div>
+
+                        <!-- Daily breakdown table -->
+                        <p:dataTable value="#{usageBean.report.dailyUsages}"
+                                     var="day"
+                                     emptyMessage="No daily records."
+                                     stripedRows="true"
+                                     rowHover="true"
+                                     rowKey="#{day.date}"
+                                     style="width:100%;">
+
+                            <f:facet name="header">Daily Breakdown</f:facet>
+
+                            <p:column headerText="Date" sortBy="#{day.date}" style="width:120px;">
+                                <h:outputText value="#{day.date}" />
+                            </p:column>
+
+                            <p:column headerText="Gross Credits"
+                                      sortBy="#{day.totalGrossQuantity}"
+                                      style="width:130px; text-align:right;">
+                                <h:outputText value="#{day.totalGrossQuantity}">
+                                    <f:convertNumber maxFractionDigits="4" groupingUsed="true" />
+                                </h:outputText>
+                            </p:column>
+
+                            <p:column headerText="Additional Amount ($)"
+                                      sortBy="#{day.totalNetAmount}"
+                                      style="width:140px; text-align:right;">
+                                <h:outputText value="#{day.totalNetAmount}">
+                                    <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                </h:outputText>
+                            </p:column>
+
+                            <!-- Expandable row for per-model breakdown -->
+                            <p:column style="width:40px; text-align:center;">
+                                <p:rowToggler />
+                            </p:column>
+
+                            <p:rowExpansion>
+                                <p:dataTable value="#{day.items}" var="item"
+                                             rowKey="#{item.product}-#{item.sku}-#{item.model}"
+                                             style="width:100%; background:#f8f9fa;">
+                                    <p:column headerText="Product"  style="width:120px;">
+                                        <h:outputText value="#{item.product}" />
+                                    </p:column>
+                                    <p:column headerText="SKU"      style="width:160px;">
+                                        <h:outputText value="#{item.sku}" />
+                                    </p:column>
+                                    <p:column headerText="Model"    style="width:160px;">
+                                        <h:outputText value="#{item.model}" />
+                                    </p:column>
+                                    <p:column headerText="Unit"     style="width:80px;">
+                                        <h:outputText value="#{item.unitType}" />
+                                    </p:column>
+                                    <p:column headerText="Gross Qty" style="width:110px; text-align:right;">
+                                        <h:outputText value="#{item.grossQuantity}">
+                                            <f:convertNumber maxFractionDigits="4" />
+                                        </h:outputText>
+                                    </p:column>
+                                    <p:column headerText="Discount" style="width:100px; text-align:right;">
+                                        <h:outputText value="#{item.discountQuantity}">
+                                            <f:convertNumber maxFractionDigits="4" />
+                                        </h:outputText>
+                                    </p:column>
+                                    <p:column headerText="Additional Qty"  style="width:100px; text-align:right;">
+                                        <h:outputText value="#{item.netQuantity}">
+                                            <f:convertNumber maxFractionDigits="4" />
+                                        </h:outputText>
+                                    </p:column>
+                                    <p:column headerText="Additional Amt ($)" style="width:120px; text-align:right;">
+                                        <h:outputText value="#{item.netAmount}">
+                                            <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                        </h:outputText>
+                                    </p:column>
+                                </p:dataTable>
+                            </p:rowExpansion>
+
+                        </p:dataTable>
+
+                        <div class="fetch-time">
+                            Fetched at: #{usageBean.fetchedAtDisplay}
+                        </div>
+
+                    </p:panel>
+                </ui:fragment>
+
+            </p:outputPanel>
+
+        </p:panel>
+
+	<p:panel>
+		<a href="https://github.com/maruTA-bis5/gh-copilot-org-user-aic-usage-viewer">Copilot AI Credit Usage Viewer</a>
+		&#160;
+		-
+		&#160;
+		Commit: #{constants.gitCommitIdShort}
+		&#160;
+		-
+		&#160;
+		<a href="https://github.com/maruTA-bis5/gh-copilot-org-user-aic-usage-viewer/issues">Report Bugs &amp; Feature Requests</a>
+	</p:panel>
+    </div>
+</h:body>
+</f:view>
+</html>
