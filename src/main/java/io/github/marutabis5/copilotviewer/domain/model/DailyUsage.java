@@ -1,5 +1,6 @@
 package io.github.marutabis5.copilotviewer.domain.model;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,7 +11,9 @@ import java.util.Objects;
  * Aggregated AI credit usage for a single calendar day.
  * May contain multiple {@link UsageItem}s (one per product/SKU/model combination).
  */
-public final class DailyUsage {
+public final class DailyUsage implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final LocalDate date;
     private final List<UsageItem> items;

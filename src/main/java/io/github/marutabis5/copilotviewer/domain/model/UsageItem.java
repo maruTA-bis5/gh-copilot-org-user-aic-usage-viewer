@@ -1,12 +1,15 @@
 package io.github.marutabis5.copilotviewer.domain.model;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * A single line item within a day's AI credit usage report.
  * Represents usage by a specific product / SKU / model combination.
  */
-public final class UsageItem {
+public final class UsageItem implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final String product;
     private final String sku;
