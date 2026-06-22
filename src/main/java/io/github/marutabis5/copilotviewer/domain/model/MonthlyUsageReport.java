@@ -1,5 +1,6 @@
 package io.github.marutabis5.copilotviewer.domain.model;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -12,7 +13,9 @@ import java.util.Objects;
  * Daily entries with zero usage are omitted from {@link #getDailyUsages()};
  * use {@link #isEmpty()} to detect an all-zero month.
  */
-public final class MonthlyUsageReport {
+public final class MonthlyUsageReport implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final String org;
     private final String login;
