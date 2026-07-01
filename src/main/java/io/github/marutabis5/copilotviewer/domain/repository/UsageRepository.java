@@ -30,8 +30,8 @@ public interface UsageRepository {
     MonthlyUsageReport findByOrgAndUserAndMonth(String org, String login, YearMonth yearMonth);
 
     /**
-     * Retrieves aggregated organisation-wide AI credit usage for the current day
-     * of the given month.
+     * Retrieves aggregated organisation-wide AI credit usage for the entire
+     * given month.
      *
      * @param org       GitHub organisation name
      * @param yearMonth the target month
