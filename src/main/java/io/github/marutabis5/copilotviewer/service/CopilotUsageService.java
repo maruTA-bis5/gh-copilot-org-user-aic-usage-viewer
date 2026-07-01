@@ -1,6 +1,8 @@
 package io.github.marutabis5.copilotviewer.service;
 
+import io.github.marutabis5.copilotviewer.domain.model.CopilotBillingInfo;
 import io.github.marutabis5.copilotviewer.domain.model.MonthlyUsageReport;
+import io.github.marutabis5.copilotviewer.domain.model.OrgCreditPoolOverview;
 import io.github.marutabis5.copilotviewer.domain.repository.UsageRepository;
 import io.github.marutabis5.copilotviewer.infrastructure.github.GitHubApiUsageRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -8,6 +10,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -72,6 +75,53 @@ public class CopilotUsageService {
                 elapsedMs);
 
         return report;
+    }
+
+    /**
+     * Fetches org-wide AI credit pool usage, billing info, and computes pool capacity
+     * for the requested month.
+     *
+     * @param yearMonthRaw raw year-month string in {@code YYYY-MM} format
+     * @return non-null {@link OrgCreditPoolOverview}
+     * @throws ValidationException  if the yearMonth input fails validation
+     * @throws GitHubApiException   if any upstream API call fails after all retries
+     */
+    public OrgCreditPoolOverview getOrgCreditPoolOverview(String yearMonthRaw) {
+        YearMonth ym    = validateYearMonth(yearMonthRaw);
+        String orgValue = validateOrg(org);
+
+        LOG.infof("Org credit pool query started: org=%s, yearMonth=%s", orgValue, ym);
+        long startNs = System.nanoTime();
+
+        CopilotBillingInfo billingInfo = apiRepository.findCopilotBillingInfo(orgValue)
+                .orElseThrow(() -> new GitHubApiException(404,
+                        "Copilot billing information is unavailable for org: " + orgValue, null));
+
+        BigDecimal poolCapacity = PoolCapacityCalculator.calculatePoolCapacity(
+                billingInfo.getPlanType(), billingInfo.getTotalSeats(), ym);
+
+        OrgCreditPoolOverview rawOverview = apiRepository.findOrgCreditPoolUsage(orgValue, ym);
+
+        OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
+                rawOverview.getOrg(),
+                rawOverview.getYearMonth(),
+                rawOverview.getTotalGrossQuantity(),
+                rawOverview.getTotalDiscountQuantity(),
+                rawOverview.getTotalNetQuantity(),
+                rawOverview.getTotalNetAmount(),
+                poolCapacity,
+                rawOverview.getFetchedAt());
+
+        long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+        LOG.infof("Org credit pool query completed: org=%s, yearMonth=%s, "
+                        + "poolCapacity=%s, remaining=%s, usageRate=%s%%, elapsedMs=%d",
+                orgValue, ym,
+                overview.getTotalPoolCapacity(),
+                overview.getRemainingPool(),
+                overview.getUsageRatePercent(),
+                elapsedMs);
+
+        return overview;
     }
 
     // -------------------------------------------------------------------------

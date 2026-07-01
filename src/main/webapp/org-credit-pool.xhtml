@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:ui="jakarta.faces.facelets">
+<f:view>
+<h:head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Org Credit Pool Overview</title>
+    <h:outputStylesheet library="css" name="style.css"/>
+</h:head>
+<h:body>
+    <div class="main-card">
+        <p:panel header="Organization Credit Pool Overview">
+
+            <!-- Month selection form -->
+            <h:form id="searchForm">
+                <p:messages id="messages" showDetail="true" closable="true">
+                    <p:autoUpdate />
+                </p:messages>
+
+                <p:panelGrid columns="2" styleClass="ui-panelgrid-blank"
+                             columnClasses="ui-grid-col-3,ui-grid-col-9"
+                             style="margin-bottom:1rem;">
+
+                    <p:outputLabel for="yearMonth" value="Year-Month (YYYY-MM):" />
+                    <p:datePicker id="yearMonth"
+                                  value="#{orgCreditPoolBean.yearMonth}"
+                                  view="month"
+                                  pattern="yyyy-MM"
+                                  yearRange="2025:2050"
+                                  required="true"
+                                  requiredMessage="Year-month is required."
+                                  style="width:120px;" />
+
+                </p:panelGrid>
+
+                <p:commandButton value="Refresh"
+                                 icon="pi pi-refresh"
+                                 action="#{orgCreditPoolBean.search}"
+                                 update="messages :resultPanel"
+                                 styleClass="ui-button-raised" />
+            </h:form>
+
+            <!-- Result area (AJAX-updated) -->
+            <p:outputPanel id="resultPanel">
+
+                <!-- No data -->
+                <p:panel rendered="#{orgCreditPoolBean.noData and not facesContext.validationFailed}"
+                         style="margin-top:1.5rem;">
+                    <p:outputLabel value="No pool data found. Check that the organisation has a Copilot subscription."
+                                   style="color:#6c757d;" />
+                </p:panel>
+
+                <!-- Has data -->
+                <ui:fragment rendered="#{orgCreditPoolBean.dataLoaded and not orgCreditPoolBean.noData and not facesContext.validationFailed}">
+                    <p:panel header="Credit Pool Summary" style="margin-top:1.5rem;">
+
+                        <!-- Summary cards -->
+                        <div class="summary-grid">
+                            <div class="summary-card">
+                                <div class="value">#{orgCreditPoolBean.creditPool.org}</div>
+                                <div class="label">Organization</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">#{orgCreditPoolBean.creditPool.yearMonth}</div>
+                                <div class="label">Billing Period</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">
+                                    <h:outputText value="#{orgCreditPoolBean.creditPool.totalPoolCapacity}">
+                                        <f:convertNumber maxFractionDigits="0" groupingUsed="true" />
+                                    </h:outputText>
+                                </div>
+                                <div class="label">Total Pool Capacity (credits)</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">
+                                    <h:outputText value="#{orgCreditPoolBean.creditPool.totalDiscountQuantity}">
+                                        <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                    </h:outputText>
+                                </div>
+                                <div class="label">Included Credits Used</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">
+                                    <h:outputText value="#{orgCreditPoolBean.creditPool.remainingPool}">
+                                        <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                    </h:outputText>
+                                </div>
+                                <div class="label">Remaining Pool Credits</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">
+                                    <h:outputText value="#{orgCreditPoolBean.creditPool.totalGrossQuantity}">
+                                        <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                    </h:outputText>
+                                </div>
+                                <div class="label">Total Gross Credits Used</div>
+                            </div>
+                            <div class="summary-card">
+                                <div class="value">
+                                    <h:outputText value="#{orgCreditPoolBean.creditPool.totalNetAmount}">
+                                        <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                    </h:outputText>
+                                </div>
+                                <div class="label">Total Additional Amount Billed</div>
+                            </div>
+                        </div>
+
+                        <!-- Pool usage progress bar -->
+                        <p:progressBar value="#{orgCreditPoolBean.creditPool.usageRatePercent}"
+                                       displayValue="#{orgCreditPoolBean.creditPool.usageRatePercent}%"
+                                       style="margin-bottom:1rem;" />
+
+                        <div class="fetch-time">
+                            Fetched at: #{orgCreditPoolBean.fetchedAtDisplay}
+                        </div>
+
+                    </p:panel>
+                </ui:fragment>
+
+            </p:outputPanel>
+
+        </p:panel>
+
+        <p:panel>
+            <h:link outcome="index" value="&#8592; User Credit Usage Search" />
+            &#160;-&#160;
+            <a href="https://github.com/maruTA-bis5/gh-copilot-org-user-aic-usage-viewer">Copilot AI Credit Usage Viewer</a>
+            &#160;-&#160;
+            Commit: #{constants.gitCommitIdShort}
+            &#160;-&#160;
+            <a href="https://github.com/maruTA-bis5/gh-copilot-org-user-aic-usage-viewer/issues">Report Bugs &amp; Feature Requests</a>
+        </p:panel>
+    </div>
+</h:body>
+</f:view>
+</html>

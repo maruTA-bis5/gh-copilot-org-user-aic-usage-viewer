@@ -1,10 +1,13 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github;
 
+import io.github.marutabis5.copilotviewer.domain.model.CopilotBillingInfo;
 import io.github.marutabis5.copilotviewer.domain.model.DailyUsage;
 import io.github.marutabis5.copilotviewer.domain.model.MonthlyUsageReport;
+import io.github.marutabis5.copilotviewer.domain.model.OrgCreditPoolOverview;
 import io.github.marutabis5.copilotviewer.domain.model.UsageItem;
 import io.github.marutabis5.copilotviewer.domain.repository.UsageRepository;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsageResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -14,12 +17,14 @@ import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * {@link UsageRepository} implementation that fetches data in real time from
@@ -80,6 +85,62 @@ public class GitHubApiUsageRepository implements UsageRepository {
         return new MonthlyUsageReport(org, login, yearMonth, dailyUsages, Instant.now());
     }
 
+    @Override
+    public OrgCreditPoolOverview findOrgCreditPoolUsage(String org, YearMonth yearMonth) {
+        LocalDate today = LocalDate.now();
+        AiCreditUsageResponse response;
+        try {
+            response = self.fetchDayWithRetry(
+                    org, null, today.getYear(), today.getMonthValue(), today.getDayOfMonth());
+        } catch (WebApplicationException ex) {
+            int status = ex.getResponse().getStatus();
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API failed for org-pool %s %s after retries. HTTP %d: %s",
+                    org, today, status, summary);
+            throw new GitHubApiException(status, summary, ex);
+        }
+
+        BigDecimal totalGross    = BigDecimal.ZERO;
+        BigDecimal totalDiscount = BigDecimal.ZERO;
+        BigDecimal totalNet      = BigDecimal.ZERO;
+        BigDecimal totalAmount   = BigDecimal.ZERO;
+
+        for (UsageItemDto dto : response.getUsageItems()) {
+            totalGross    = totalGross.add(BigDecimal.valueOf(dto.getGrossQuantity()));
+            totalDiscount = totalDiscount.add(BigDecimal.valueOf(dto.getDiscountQuantity()));
+            totalNet      = totalNet.add(BigDecimal.valueOf(dto.getNetQuantity()));
+            totalAmount   = totalAmount.add(BigDecimal.valueOf(dto.getNetAmount()));
+        }
+
+        return new OrgCreditPoolOverview(org, yearMonth,
+                totalGross, totalDiscount, totalNet, totalAmount,
+                BigDecimal.ZERO, // poolCapacity must be set by the caller via PoolCapacityCalculator
+                Instant.now());
+    }
+
+    @Override
+    public Optional<CopilotBillingInfo> findCopilotBillingInfo(String org) {
+        CopilotBillingResponse response;
+        try {
+            response = self.fetchCopilotBillingWithRetry(org);
+        } catch (WebApplicationException ex) {
+            int status = ex.getResponse().getStatus();
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API failed for copilot billing %s after retries. HTTP %d: %s",
+                    org, status, summary);
+            throw new GitHubApiException(status, summary, ex);
+        }
+
+        if (response == null) {
+            return Optional.empty();
+        }
+        int totalSeats = response.getSeatBreakdown() != null
+                ? response.getSeatBreakdown().getTotal()
+                : 0;
+        String planType = response.getPlanType() != null ? response.getPlanType() : "";
+        return Optional.of(new CopilotBillingInfo(totalSeats, planType));
+    }
+
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
@@ -107,6 +168,24 @@ public class GitHubApiUsageRepository implements UsageRepository {
             String summary = buildSafeSummary(status);
             LOG.errorf("GitHub API non-retryable error for %s/%s %04d-%02d-%02d. HTTP %d: %s",
                     org, login, year, month, day, status, summary);
+            throw new GitHubApiException(status, summary, ex);
+        }
+    }
+
+    @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
+           retryOn = WebApplicationException.class, jitter = 0)
+    CopilotBillingResponse fetchCopilotBillingWithRetry(String org) {
+        try {
+            return billingClient.getCopilotBilling(org);
+        } catch (WebApplicationException ex) {
+            int status = ex.getResponse().getStatus();
+            if (isRetryable(status)) {
+                LOG.warnf("GitHub API HTTP %d for copilot billing %s, will retry...", status, org);
+                throw ex;
+            }
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API non-retryable error for copilot billing %s. HTTP %d: %s",
+                    org, status, summary);
             throw new GitHubApiException(status, summary, ex);
         }
     }

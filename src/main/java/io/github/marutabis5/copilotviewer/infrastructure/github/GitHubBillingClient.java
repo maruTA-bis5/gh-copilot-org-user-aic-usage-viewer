@@ -1,6 +1,7 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github;
 
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsageResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
@@ -55,4 +56,15 @@ public interface GitHubBillingClient extends AutoCloseable {
         String pat = ConfigProvider.getConfig().getValue("github.pat", String.class);
         return "Bearer " + pat;
     }
+
+    /**
+     * Fetches Copilot billing subscription info for an organisation.
+     *
+     * @param org organisation name
+     * @return the parsed billing response; never {@code null}
+     */
+    @GET
+    @Path("/orgs/{org}/copilot/billing")
+    @Produces(MediaType.APPLICATION_JSON)
+    CopilotBillingResponse getCopilotBilling(@PathParam("org") String org);
 }
