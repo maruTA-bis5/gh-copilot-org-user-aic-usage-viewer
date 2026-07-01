@@ -189,17 +189,10 @@ public class GitHubApiUsageRepository implements UsageRepository {
     CopilotBillingResponse fetchCopilotBillingWithRetry(String org) {
         return executeWithRetryHandling(
                 () -> billingClient.getCopilotBilling(org),
-                "copilot billing %s".formatted(org),
-                true);
+                "copilot billing %s".formatted(org));
     }
 
     private <T> T executeWithRetryHandling(Supplier<T> action, String context) {
-        return executeWithRetryHandling(action, context, false);
-    }
-
-    private <T> T executeWithRetryHandling(Supplier<T> action,
-                                           String context,
-                                           boolean rethrowNotFound) {
         try {
             return action.get();
         } catch (WebApplicationException ex) {
@@ -208,8 +201,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
                 LOG.warnf("GitHub API HTTP %d for %s, will retry...", status, context);
                 throw ex;
             }
-            // For 404s, always throw GitHubApiException (non-retryable) instead of
-            // WebApplicationException, even when rethrowNotFound=true.
+            // For 404s, always throw GitHubApiException (non-retryable) instead of WebApplicationException.
             // This prevents wasteful retries since 404s won't become 200s on retry.
             String summary = buildSafeSummary(status);
             LOG.errorf("GitHub API non-retryable error for %s. HTTP %d: %s",
