@@ -81,13 +81,13 @@ public class CopilotUsageService {
      * Fetches org-wide AI credit pool usage, billing info, and computes pool capacity
      * for the requested month.
      *
-     * @param yearMonthRaw raw year-month string in {@code YYYY-MM} format
+     * @param yearMonth target year-month
      * @return non-null {@link OrgCreditPoolOverview}
      * @throws ValidationException  if the yearMonth input fails validation
      * @throws GitHubApiException   if any upstream API call fails after all retries
      */
-    public OrgCreditPoolOverview getOrgCreditPoolOverview(String yearMonthRaw) {
-        YearMonth ym    = validateYearMonth(yearMonthRaw);
+    public OrgCreditPoolOverview getOrgCreditPoolOverview(YearMonth yearMonth) {
+        YearMonth ym    = yearMonth;
         String orgValue = validateOrg(org);
 
         LOG.infof("Org credit pool query started: org=%s, yearMonth=%s", orgValue, ym);

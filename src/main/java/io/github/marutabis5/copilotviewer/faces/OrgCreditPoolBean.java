@@ -103,8 +103,7 @@ public class OrgCreditPoolBean implements Serializable {
         error = false;
 
         try {
-            creditPool = usageService.getOrgCreditPoolOverview(
-                    yearMonth != null ? yearMonth.toString() : null);
+            creditPool = usageService.getOrgCreditPoolOverview(yearMonth);
         } catch (ValidationException e) {
             error = true;
             ctx.addMessage(null, new FacesMessage(

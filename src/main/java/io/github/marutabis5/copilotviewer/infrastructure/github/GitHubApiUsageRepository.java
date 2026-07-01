@@ -87,16 +87,15 @@ public class GitHubApiUsageRepository implements UsageRepository {
 
     @Override
     public OrgCreditPoolOverview findOrgCreditPoolUsage(String org, YearMonth yearMonth) {
-        LocalDate today = LocalDate.now();
         AiCreditUsageResponse response;
         try {
             response = self.fetchDayWithRetry(
-                    org, null, today.getYear(), today.getMonthValue(), today.getDayOfMonth());
+                    org, null, yearMonth.getYear(), yearMonth.getMonthValue(), null);
         } catch (WebApplicationException ex) {
             int status = ex.getResponse().getStatus();
             String summary = buildSafeSummary(status);
             LOG.errorf("GitHub API failed for org-pool %s %s after retries. HTTP %d: %s",
-                    org, today, status, summary);
+                    org, yearMonth, status, summary);
             throw new GitHubApiException(status, summary, ex);
         }
 
@@ -155,7 +154,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
     @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
            retryOn = WebApplicationException.class, jitter = 0)
     AiCreditUsageResponse fetchDayWithRetry(String org, String login,
-                                            int year, int month, int day) {
+                                            int year, int month, Integer day) {
         try {
             return billingClient.getAiCreditUsage(org, year, month, day, login);
         } catch (WebApplicationException ex) {
