@@ -97,8 +97,15 @@ public class CopilotUsageService {
                 .orElseThrow(() -> new GitHubApiException(404,
                         "Copilot billing information is unavailable for org: " + orgValue, null));
 
-        BigDecimal poolCapacity = PoolCapacityCalculator.calculatePoolCapacity(
-                billingInfo.getPlanType(), billingInfo.getTotalSeats(), ym);
+        BigDecimal poolCapacity;
+        try {
+            poolCapacity = PoolCapacityCalculator.calculatePoolCapacity(
+                    billingInfo.getPlanType(), billingInfo.getTotalSeats(), ym);
+        } catch (IllegalArgumentException e) {
+            throw new GitHubApiException(422,
+                    "Unrecognized Copilot plan type returned by GitHub API: '"
+                            + billingInfo.getPlanType() + "'", e);
+        }
 
         OrgCreditPoolOverview rawOverview = apiRepository.findOrgCreditPoolUsage(orgValue, ym);
 
