@@ -1,14 +1,11 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 import java.util.Collections;
 import java.util.List;
 
 /**
  * Top-level response from {@code GET /organizations/{org}/settings/billing/ai_credit/usage}.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class AiCreditUsageResponse {
 
     private TimePeriodDto timePeriod;

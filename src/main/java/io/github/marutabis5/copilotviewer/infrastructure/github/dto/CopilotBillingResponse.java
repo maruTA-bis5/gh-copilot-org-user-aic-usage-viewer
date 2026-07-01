@@ -1,18 +1,16 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.json.bind.annotation.JsonbProperty;
 
 /**
  * Top-level response from {@code GET /orgs/{org}/copilot/billing}.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class CopilotBillingResponse {
 
-    @JsonProperty("seat_breakdown")
+    @JsonbProperty("seat_breakdown")
     private SeatBreakdownDto seatBreakdown;
 
-    @JsonProperty("plan_type")
+    @JsonbProperty("plan_type")
     private String planType;
 
     public SeatBreakdownDto getSeatBreakdown() { return seatBreakdown; }

@@ -1,13 +1,10 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 /**
  * One line item from the GitHub Billing AI Credit usage API response.
  *
  * <p>Endpoint: {@code GET /organizations/{org}/settings/billing/ai_credit/usage}</p>
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class UsageItemDto {
 
     private String product;
