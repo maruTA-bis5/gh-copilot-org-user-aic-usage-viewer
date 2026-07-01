@@ -1,10 +1,13 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github;
 
+import io.github.marutabis5.copilotviewer.domain.model.CopilotBillingInfo;
 import io.github.marutabis5.copilotviewer.domain.model.DailyUsage;
 import io.github.marutabis5.copilotviewer.domain.model.MonthlyUsageReport;
+import io.github.marutabis5.copilotviewer.domain.model.OrgCreditPoolOverview;
 import io.github.marutabis5.copilotviewer.domain.model.UsageItem;
 import io.github.marutabis5.copilotviewer.domain.repository.UsageRepository;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsageResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -14,12 +17,15 @@ import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * {@link UsageRepository} implementation that fetches data in real time from
@@ -80,6 +86,69 @@ public class GitHubApiUsageRepository implements UsageRepository {
         return new MonthlyUsageReport(org, login, yearMonth, dailyUsages, Instant.now());
     }
 
+    @Override
+    public OrgCreditPoolOverview findOrgCreditPoolUsage(String org, YearMonth yearMonth) {
+        AiCreditUsageResponse response;
+        try {
+            response = self.fetchMonthWithRetry(
+                    org, null, yearMonth.getYear(), yearMonth.getMonthValue());
+        } catch (WebApplicationException ex) {
+            int status = ex.getResponse().getStatus();
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API failed for org-pool %s %s after retries. HTTP %d: %s",
+                    org, yearMonth, status, summary);
+            throw new GitHubApiException(status, summary, ex);
+        }
+
+        BigDecimal totalGross    = BigDecimal.ZERO;
+        BigDecimal totalDiscount = BigDecimal.ZERO;
+        BigDecimal totalNet      = BigDecimal.ZERO;
+        BigDecimal totalAmount   = BigDecimal.ZERO;
+
+        for (UsageItemDto dto : response.getUsageItems()) {
+            totalGross    = totalGross.add(BigDecimal.valueOf(dto.getGrossQuantity()));
+            totalDiscount = totalDiscount.add(BigDecimal.valueOf(dto.getDiscountQuantity()));
+            totalNet      = totalNet.add(BigDecimal.valueOf(dto.getNetQuantity()));
+            totalAmount   = totalAmount.add(BigDecimal.valueOf(dto.getNetAmount()));
+        }
+
+        return new OrgCreditPoolOverview(org, yearMonth,
+                totalGross, totalDiscount, totalNet, totalAmount,
+                BigDecimal.ZERO, // poolCapacity must be set by the caller via PoolCapacityCalculator
+                Instant.now());
+    }
+
+    @Override
+    public Optional<CopilotBillingInfo> findCopilotBillingInfo(String org) {
+        CopilotBillingResponse response;
+        try {
+            response = self.fetchCopilotBillingWithRetry(org);
+        } catch (GitHubApiException ex) {
+            // 404 means no Copilot subscription
+            if (ex.getHttpStatus() == 404) {
+                return Optional.empty();
+            }
+            // Other errors were already logged in executeWithRetryHandling
+            throw ex;
+        } catch (WebApplicationException ex) {
+            // Should not happen after executeWithRetryHandling changes, but handle defensively
+            int status = ex.getResponse().getStatus();
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API failed for copilot billing %s after retries. HTTP %d: %s",
+                    org, status, summary);
+            throw new GitHubApiException(status, summary, ex);
+        }
+
+        if (response == null) {
+            return Optional.empty();
+        }
+        int totalSeats = response.getSeatBreakdown() != null
+                ? response.getSeatBreakdown().getTotal()
+                : 0;
+        String planType = response.getPlanType() != null ? response.getPlanType() : "";
+        return Optional.of(new CopilotBillingInfo(totalSeats, planType));
+    }
+
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
@@ -95,18 +164,48 @@ public class GitHubApiUsageRepository implements UsageRepository {
            retryOn = WebApplicationException.class, jitter = 0)
     AiCreditUsageResponse fetchDayWithRetry(String org, String login,
                                             int year, int month, int day) {
+        return executeWithRetryHandling(
+                () -> billingClient.getAiCreditUsage(org, year, month, day, login),
+                "%s/%s %04d-%02d-%02d".formatted(org, login, year, month, day));
+    }
+
+    /**
+     * Calls the GitHub API for the entire given month.
+     * Retryable failures (HTTP 429 / 5xx) rethrow the {@link WebApplicationException}
+     * so that the MicroProfile Fault Tolerance {@link Retry} interceptor can retry.
+     * Non-retryable failures (other 4xx) throw {@link GitHubApiException} directly,
+     * which is not in {@code retryOn} and therefore aborts immediately.
+     */
+    @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
+           retryOn = WebApplicationException.class, jitter = 0)
+    AiCreditUsageResponse fetchMonthWithRetry(String org, String login, int year, int month) {
+        return executeWithRetryHandling(
+                () -> billingClient.getAiCreditUsage(org, year, month, login),
+                "%s/%s %04d-%02d".formatted(org, login, year, month));
+    }
+
+    @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
+           retryOn = WebApplicationException.class, jitter = 0)
+    CopilotBillingResponse fetchCopilotBillingWithRetry(String org) {
+        return executeWithRetryHandling(
+                () -> billingClient.getCopilotBilling(org),
+                "copilot billing %s".formatted(org));
+    }
+
+    private <T> T executeWithRetryHandling(Supplier<T> action, String context) {
         try {
-            return billingClient.getAiCreditUsage(org, year, month, day, login);
+            return action.get();
         } catch (WebApplicationException ex) {
             int status = ex.getResponse().getStatus();
             if (isRetryable(status)) {
-                LOG.warnf("GitHub API HTTP %d for %s/%s %04d-%02d-%02d, will retry...",
-                        status, org, login, year, month, day);
+                LOG.warnf("GitHub API HTTP %d for %s, will retry...", status, context);
                 throw ex;
             }
+            // For 404s, always throw GitHubApiException (non-retryable) instead of WebApplicationException.
+            // This prevents wasteful retries since 404s won't become 200s on retry.
             String summary = buildSafeSummary(status);
-            LOG.errorf("GitHub API non-retryable error for %s/%s %04d-%02d-%02d. HTTP %d: %s",
-                    org, login, year, month, day, status, summary);
+            LOG.errorf("GitHub API non-retryable error for %s. HTTP %d: %s",
+                    context, status, summary);
             throw new GitHubApiException(status, summary, ex);
         }
     }

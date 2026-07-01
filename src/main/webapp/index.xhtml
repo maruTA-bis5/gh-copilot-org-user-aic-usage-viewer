@@ -9,15 +9,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Copilot AI Credit Usage Viewer</title>
-    <style>
-        body { font-family: sans-serif; margin: 1.5rem; background: #f8f9fa; }
-        .main-card { max-width: 960px; margin: 0 auto; }
-        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
-        .summary-card { background: #fff; border: 1px solid #dee2e6; border-radius: 6px; padding: 1rem; text-align: center; }
-        .summary-card .value { font-size: 1.75rem; font-weight: bold; color: #0d6efd; }
-        .summary-card .label { font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem; }
-        .fetch-time { font-size: 0.8rem; color: #6c757d; text-align: right; margin-top: 0.5rem; }
-    </style>
+    <h:outputStylesheet library="css" name="style.css"/>
 </h:head>
 <h:body>
     <div class="main-card">
@@ -205,6 +197,8 @@
 
 	<p:panel>
 		<a href="https://github.com/maruTA-bis5/gh-copilot-org-user-aic-usage-viewer">Copilot AI Credit Usage Viewer</a>
+		&#160;-&#160;
+		<h:link outcome="org-credit-pool" value="Org Credit Pool Overview" />
 		&#160;
 		-
 		&#160;

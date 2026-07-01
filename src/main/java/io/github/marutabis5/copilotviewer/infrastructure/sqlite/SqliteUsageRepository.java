@@ -1,10 +1,13 @@
 package io.github.marutabis5.copilotviewer.infrastructure.sqlite;
 
+import io.github.marutabis5.copilotviewer.domain.model.CopilotBillingInfo;
 import io.github.marutabis5.copilotviewer.domain.model.MonthlyUsageReport;
+import io.github.marutabis5.copilotviewer.domain.model.OrgCreditPoolOverview;
 import io.github.marutabis5.copilotviewer.domain.repository.UsageRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.YearMonth;
+import java.util.Optional;
 
 /**
  * Future {@link UsageRepository} implementation backed by SQLite.
@@ -30,6 +33,20 @@ public class SqliteUsageRepository implements UsageRepository {
     public MonthlyUsageReport findByOrgAndUserAndMonth(String org,
                                                        String login,
                                                        YearMonth yearMonth) {
+        throw new UnsupportedOperationException(
+                "SQLite repository is not implemented yet. "
+                + "Wire GitHubApiUsageRepository for all months in the MVP.");
+    }
+
+    @Override
+    public OrgCreditPoolOverview findOrgCreditPoolUsage(String org, YearMonth yearMonth) {
+        throw new UnsupportedOperationException(
+                "SQLite repository is not implemented yet. "
+                + "Wire GitHubApiUsageRepository for all months in the MVP.");
+    }
+
+    @Override
+    public Optional<CopilotBillingInfo> findCopilotBillingInfo(String org) {
         throw new UnsupportedOperationException(
                 "SQLite repository is not implemented yet. "
                 + "Wire GitHubApiUsageRepository for all months in the MVP.");

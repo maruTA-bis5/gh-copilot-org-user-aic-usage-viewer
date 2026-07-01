@@ -1,13 +1,10 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 /**
  * The {@code timePeriod} object returned by the GitHub billing API.
  * Fields are nullable because the API may return only the queried granularity
  * (e.g. only {@code year} when no month/day was specified).
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class TimePeriodDto {
 
     private Integer year;
