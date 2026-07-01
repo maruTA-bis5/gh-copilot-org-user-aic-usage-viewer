@@ -1,6 +1,8 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github;
 
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsageResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.SeatBreakdownDto;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
 import jakarta.ws.rs.WebApplicationException;
@@ -174,6 +176,49 @@ class GitHubApiUsageRepositoryTest {
 
         assertThat(report.getDailyUsages()).hasSize(1);
         assertThat(report.getDailyUsages().get(0).getDate().getDayOfMonth()).isEqualTo(14);
+    }
+
+    // =========================================================================
+    // findCopilotBillingInfo
+    // =========================================================================
+
+    @Test
+    void findCopilotBillingInfo_returns_empty_on_404() {
+        WebApplicationException ex = webAppException(404);
+        when(billingClient.getCopilotBilling("org"))
+                .thenThrow(ex);
+
+        var result = repository.findCopilotBillingInfo("org");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findCopilotBillingInfo_maps_response_to_domain() {
+        SeatBreakdownDto seatBreakdown = new SeatBreakdownDto();
+        seatBreakdown.setTotal(42);
+        CopilotBillingResponse response = new CopilotBillingResponse();
+        response.setSeatBreakdown(seatBreakdown);
+        response.setPlanType("business");
+        when(billingClient.getCopilotBilling("org")).thenReturn(response);
+
+        var result = repository.findCopilotBillingInfo("org");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getTotalSeats()).isEqualTo(42);
+        assertThat(result.get().getPlanType()).isEqualTo("business");
+    }
+
+    @Test
+    void findCopilotBillingInfo_throws_on_non_404_client_error() {
+        WebApplicationException ex = webAppException(403);
+        when(billingClient.getCopilotBilling("org"))
+                .thenThrow(ex);
+
+        assertThatThrownBy(() -> repository.findCopilotBillingInfo("org"))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus())
+                .isEqualTo(403);
     }
 
     // =========================================================================

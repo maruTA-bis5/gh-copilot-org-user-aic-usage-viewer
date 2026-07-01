@@ -2,10 +2,13 @@ package io.github.marutabis5.copilotviewer.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -57,46 +60,20 @@ class InputValidationTest {
     // validateYearMonth
     // =========================================================================
 
-    @Test
-    void yearMonth_current_month_is_accepted_String() {
-        YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
-        YearMonth result = CopilotUsageService.validateYearMonth(currentMonth.toString()); // "YYYY-MM"
-        assertThat(result).isEqualTo(currentMonth);
-    }
-
-    @Test
-    void yearMonth_current_month_is_accepted_YearMonth() {
-        YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
-        YearMonth result = CopilotUsageService.validateYearMonth(currentMonth);
-        assertThat(result).isEqualTo(currentMonth);
-    }
-
-    @Test
-    void yearMonth_past_month_is_accepted_String() {
-        YearMonth result = CopilotUsageService.validateYearMonth("2024-01");
-        assertThat(result).isEqualTo(YearMonth.of(2024, 1));
-    }
-
-    @Test
-    void yearMonth_past_month_is_accepted_YearMonth() {
-        YearMonth result = CopilotUsageService.validateYearMonth(YearMonth.of(2024, 1));
-        assertThat(result).isEqualTo(YearMonth.of(2024, 1));
-    }
-
-    @Test
-    void yearMonth_future_month_throws_String() {
-        YearMonth future = YearMonth.now(ZoneOffset.UTC).plusMonths(1);
-        assertThatThrownBy(() -> CopilotUsageService.validateYearMonth(future.toString()))
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("yearMonthValidationCases")
+    void yearMonth_validation_across_input_types(String scenario,
+                                                 InputType inputType,
+                                                 Object input,
+                                                 YearMonth expected,
+                                                 String expectedErrorPart) {
+        if (expected != null) {
+            assertThat(validateYearMonth(inputType, input)).isEqualTo(expected);
+            return;
+        }
+        assertThatThrownBy(() -> validateYearMonth(inputType, input))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Future months are not allowed");
-    }
-
-    @Test
-    void yearMonth_future_month_throws_YearMonth() {
-        YearMonth future = YearMonth.now(ZoneOffset.UTC).plusMonths(1);
-        assertThatThrownBy(() -> CopilotUsageService.validateYearMonth(future))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Future months are not allowed");
+                .hasMessageContaining(expectedErrorPart);
     }
 
     @ParameterizedTest
@@ -107,22 +84,37 @@ class InputValidationTest {
     }
 
     @Test
-    void yearMonth_null_throws_String() {
-        assertThatThrownBy(() -> CopilotUsageService.validateYearMonth((String)null))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("empty");
-    }
-
-    @Test
-    void yearMonth_null_throws_YearMonth() {
-        assertThatThrownBy(() -> CopilotUsageService.validateYearMonth((YearMonth)null))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("empty");
-    }
-
-    @Test
     void yearMonth_leading_trailing_spaces_are_trimmed() {
         YearMonth result = CopilotUsageService.validateYearMonth("  2024-06  ");
         assertThat(result).isEqualTo(YearMonth.of(2024, 6));
+    }
+
+    private static Stream<Arguments> yearMonthValidationCases() {
+        YearMonth current = YearMonth.now(ZoneOffset.UTC);
+        YearMonth past = YearMonth.of(2024, 1);
+        YearMonth future = current.plusMonths(1);
+
+        return Stream.of(
+                Arguments.of("current month String", InputType.STRING, current.toString(), current, null),
+                Arguments.of("current month YearMonth", InputType.YEAR_MONTH, current, current, null),
+                Arguments.of("past month String", InputType.STRING, "2024-01", past, null),
+                Arguments.of("past month YearMonth", InputType.YEAR_MONTH, past, past, null),
+                Arguments.of("future month String", InputType.STRING, future.toString(), null, "Future months are not allowed"),
+                Arguments.of("future month YearMonth", InputType.YEAR_MONTH, future, null, "Future months are not allowed"),
+                Arguments.of("null String", InputType.STRING, null, null, "empty"),
+                Arguments.of("null YearMonth", InputType.YEAR_MONTH, null, null, "empty")
+        );
+    }
+
+    private static YearMonth validateYearMonth(InputType inputType, Object input) {
+        return switch (inputType) {
+            case STRING -> CopilotUsageService.validateYearMonth((String) input);
+            case YEAR_MONTH -> CopilotUsageService.validateYearMonth((YearMonth) input);
+        };
+    }
+
+    private enum InputType {
+        STRING,
+        YEAR_MONTH
     }
 }

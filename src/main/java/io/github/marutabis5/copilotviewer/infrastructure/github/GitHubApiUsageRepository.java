@@ -25,6 +25,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * {@link UsageRepository} implementation that fetches data in real time from
@@ -89,7 +90,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
     public OrgCreditPoolOverview findOrgCreditPoolUsage(String org, YearMonth yearMonth) {
         AiCreditUsageResponse response;
         try {
-            response = self.fetchDayWithRetry(
+            response = self.fetchMonthWithRetry(
                     org, null, yearMonth.getYear(), yearMonth.getMonthValue());
         } catch (WebApplicationException ex) {
             int status = ex.getResponse().getStatus();
@@ -124,6 +125,9 @@ public class GitHubApiUsageRepository implements UsageRepository {
             response = self.fetchCopilotBillingWithRetry(org);
         } catch (WebApplicationException ex) {
             int status = ex.getResponse().getStatus();
+            if (status == 404) {
+                return Optional.empty();
+            }
             String summary = buildSafeSummary(status);
             LOG.errorf("GitHub API failed for copilot billing %s after retries. HTTP %d: %s",
                     org, status, summary);
@@ -155,20 +159,9 @@ public class GitHubApiUsageRepository implements UsageRepository {
            retryOn = WebApplicationException.class, jitter = 0)
     AiCreditUsageResponse fetchDayWithRetry(String org, String login,
                                             int year, int month, int day) {
-        try {
-            return billingClient.getAiCreditUsage(org, year, month, day, login);
-        } catch (WebApplicationException ex) {
-            int status = ex.getResponse().getStatus();
-            if (isRetryable(status)) {
-                LOG.warnf("GitHub API HTTP %d for %s/%s %04d-%02d-%02d, will retry...",
-                        status, org, login, year, month, day);
-                throw ex;
-            }
-            String summary = buildSafeSummary(status);
-            LOG.errorf("GitHub API non-retryable error for %s/%s %04d-%02d-%02d. HTTP %d: %s",
-                    org, login, year, month, day, status, summary);
-            throw new GitHubApiException(status, summary, ex);
-        }
+        return executeWithRetryHandling(
+                () -> billingClient.getAiCreditUsage(org, year, month, day, login),
+                "%s/%s %04d-%02d-%02d".formatted(org, login, year, month, day));
     }
 
     /**
@@ -180,37 +173,42 @@ public class GitHubApiUsageRepository implements UsageRepository {
      */
     @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
            retryOn = WebApplicationException.class, jitter = 0)
-    AiCreditUsageResponse fetchDayWithRetry(String org, String login, int year, int month) {
-        try {
-            return billingClient.getAiCreditUsage(org, year, month, login);
-        } catch (WebApplicationException ex) {
-            int status = ex.getResponse().getStatus();
-            if (isRetryable(status)) {
-                LOG.warnf("GitHub API HTTP %d for %s/%s %04d-%02d, will retry...",
-                        status, org, login, year, month);
-                throw ex;
-            }
-            String summary = buildSafeSummary(status);
-            LOG.errorf("GitHub API non-retryable error for %s/%s %04d-%02d. HTTP %d: %s",
-                    org, login, year, month, status, summary);
-            throw new GitHubApiException(status, summary, ex);
-        }
+    AiCreditUsageResponse fetchMonthWithRetry(String org, String login, int year, int month) {
+        return executeWithRetryHandling(
+                () -> billingClient.getAiCreditUsage(org, year, month, login),
+                "%s/%s %04d-%02d".formatted(org, login, year, month));
     }
 
     @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
            retryOn = WebApplicationException.class, jitter = 0)
     CopilotBillingResponse fetchCopilotBillingWithRetry(String org) {
+        return executeWithRetryHandling(
+                () -> billingClient.getCopilotBilling(org),
+                "copilot billing %s".formatted(org),
+                true);
+    }
+
+    private <T> T executeWithRetryHandling(Supplier<T> action, String context) {
+        return executeWithRetryHandling(action, context, false);
+    }
+
+    private <T> T executeWithRetryHandling(Supplier<T> action,
+                                           String context,
+                                           boolean rethrowNotFound) {
         try {
-            return billingClient.getCopilotBilling(org);
+            return action.get();
         } catch (WebApplicationException ex) {
             int status = ex.getResponse().getStatus();
             if (isRetryable(status)) {
-                LOG.warnf("GitHub API HTTP %d for copilot billing %s, will retry...", status, org);
+                LOG.warnf("GitHub API HTTP %d for %s, will retry...", status, context);
+                throw ex;
+            }
+            if (rethrowNotFound && status == 404) {
                 throw ex;
             }
             String summary = buildSafeSummary(status);
-            LOG.errorf("GitHub API non-retryable error for copilot billing %s. HTTP %d: %s",
-                    org, status, summary);
+            LOG.errorf("GitHub API non-retryable error for %s. HTTP %d: %s",
+                    context, status, summary);
             throw new GitHubApiException(status, summary, ex);
         }
     }
