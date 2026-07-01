@@ -33,7 +33,7 @@ public interface GitHubBillingClient extends AutoCloseable {
      * @param org   organisation name
      * @param year  four-digit year
      * @param month month (1–12)
-     * @param day   day of month (1–31) or null (all day in year-month)
+     * @param day   day of month (1–31)
      * @param user  GitHub login to filter on (case-insensitive)
      * @return the parsed response; never {@code null}
      */
@@ -44,7 +44,26 @@ public interface GitHubBillingClient extends AutoCloseable {
             @PathParam("org")   String org,
             @QueryParam("year") int    year,
             @QueryParam("month") int   month,
-            @QueryParam("day")  Integer    day,
+            @QueryParam("day")  int    day,
+            @QueryParam("user") String user
+    );
+
+    /**
+     * Fetches AI credit usage for the entire of given month.
+     *
+     * @param org   organisation name
+     * @param year  four-digit year
+     * @param month month (1–12)
+     * @param user  GitHub login to filter on (case-insensitive)
+     * @return the parsed response; never {@code null}
+     */
+    @GET
+    @Path("/organizations/{org}/settings/billing/ai_credit/usage")
+    @Produces(MediaType.APPLICATION_JSON)
+    AiCreditUsageResponse getAiCreditUsage(
+            @PathParam("org")   String org,
+            @QueryParam("year") int    year,
+            @QueryParam("month") int   month,
             @QueryParam("user") String user
     );
 

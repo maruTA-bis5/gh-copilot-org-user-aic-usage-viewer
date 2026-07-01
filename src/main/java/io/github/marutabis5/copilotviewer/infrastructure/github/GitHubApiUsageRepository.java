@@ -90,7 +90,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
         AiCreditUsageResponse response;
         try {
             response = self.fetchDayWithRetry(
-                    org, null, yearMonth.getYear(), yearMonth.getMonthValue(), null);
+                    org, null, yearMonth.getYear(), yearMonth.getMonthValue());
         } catch (WebApplicationException ex) {
             int status = ex.getResponse().getStatus();
             String summary = buildSafeSummary(status);
@@ -154,7 +154,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
     @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
            retryOn = WebApplicationException.class, jitter = 0)
     AiCreditUsageResponse fetchDayWithRetry(String org, String login,
-                                            int year, int month, Integer day) {
+                                            int year, int month, int day) {
         try {
             return billingClient.getAiCreditUsage(org, year, month, day, login);
         } catch (WebApplicationException ex) {
@@ -167,6 +167,32 @@ public class GitHubApiUsageRepository implements UsageRepository {
             String summary = buildSafeSummary(status);
             LOG.errorf("GitHub API non-retryable error for %s/%s %04d-%02d-%02d. HTTP %d: %s",
                     org, login, year, month, day, status, summary);
+            throw new GitHubApiException(status, summary, ex);
+        }
+    }
+
+    /**
+     * Calls the GitHub API for the entire given month.
+     * Retryable failures (HTTP 429 / 5xx) rethrow the {@link WebApplicationException}
+     * so that the MicroProfile Fault Tolerance {@link Retry} interceptor can retry.
+     * Non-retryable failures (other 4xx) throw {@link GitHubApiException} directly,
+     * which is not in {@code retryOn} and therefore aborts immediately.
+     */
+    @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
+           retryOn = WebApplicationException.class, jitter = 0)
+    AiCreditUsageResponse fetchDayWithRetry(String org, String login, int year, int month) {
+        try {
+            return billingClient.getAiCreditUsage(org, year, month, login);
+        } catch (WebApplicationException ex) {
+            int status = ex.getResponse().getStatus();
+            if (isRetryable(status)) {
+                LOG.warnf("GitHub API HTTP %d for %s/%s %04d-%02d, will retry...",
+                        status, org, login, year, month);
+                throw ex;
+            }
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API non-retryable error for %s/%s %04d-%02d. HTTP %d: %s",
+                    org, login, year, month, status, summary);
             throw new GitHubApiException(status, summary, ex);
         }
     }
