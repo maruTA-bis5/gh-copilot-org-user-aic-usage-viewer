@@ -58,22 +58,43 @@ class InputValidationTest {
     // =========================================================================
 
     @Test
-    void yearMonth_current_month_is_accepted() {
+    void yearMonth_current_month_is_accepted_String() {
         YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
         YearMonth result = CopilotUsageService.validateYearMonth(currentMonth.toString()); // "YYYY-MM"
         assertThat(result).isEqualTo(currentMonth);
     }
 
     @Test
-    void yearMonth_past_month_is_accepted() {
+    void yearMonth_current_month_is_accepted_YearMonth() {
+        YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
+        YearMonth result = CopilotUsageService.validateYearMonth(currentMonth);
+        assertThat(result).isEqualTo(currentMonth);
+    }
+
+    @Test
+    void yearMonth_past_month_is_accepted_String() {
         YearMonth result = CopilotUsageService.validateYearMonth("2024-01");
         assertThat(result).isEqualTo(YearMonth.of(2024, 1));
     }
 
     @Test
-    void yearMonth_future_month_throws() {
+    void yearMonth_past_month_is_accepted_YearMonth() {
+        YearMonth result = CopilotUsageService.validateYearMonth(YearMonth.of(2024, 1));
+        assertThat(result).isEqualTo(YearMonth.of(2024, 1));
+    }
+
+    @Test
+    void yearMonth_future_month_throws_String() {
         YearMonth future = YearMonth.now(ZoneOffset.UTC).plusMonths(1);
         assertThatThrownBy(() -> CopilotUsageService.validateYearMonth(future.toString()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Future months are not allowed");
+    }
+
+    @Test
+    void yearMonth_future_month_throws_YearMonth() {
+        YearMonth future = YearMonth.now(ZoneOffset.UTC).plusMonths(1);
+        assertThatThrownBy(() -> CopilotUsageService.validateYearMonth(future))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Future months are not allowed");
     }
@@ -86,8 +107,15 @@ class InputValidationTest {
     }
 
     @Test
-    void yearMonth_null_throws() {
-        assertThatThrownBy(() -> CopilotUsageService.validateYearMonth(null))
+    void yearMonth_null_throws_String() {
+        assertThatThrownBy(() -> CopilotUsageService.validateYearMonth((String)null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("empty");
+    }
+
+    @Test
+    void yearMonth_null_throws_YearMonth() {
+        assertThatThrownBy(() -> CopilotUsageService.validateYearMonth((YearMonth)null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("empty");
     }

@@ -87,7 +87,7 @@ public class CopilotUsageService {
      * @throws GitHubApiException   if any upstream API call fails after all retries
      */
     public OrgCreditPoolOverview getOrgCreditPoolOverview(YearMonth yearMonth) {
-        YearMonth ym    = yearMonth;
+        YearMonth ym    = validateYearMonth(yearMonth);
         String orgValue = validateOrg(org);
 
         LOG.infof("Org credit pool query started: org=%s, yearMonth=%s", orgValue, ym);
@@ -157,6 +157,19 @@ public class CopilotUsageService {
         } catch (DateTimeParseException e) {
             throw new ValidationException(
                     "Year-month must be in YYYY-MM format (e.g. 2025-06).");
+        }
+        YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
+        if (ym.isAfter(currentMonth)) {
+            throw new ValidationException(
+                    "Future months are not allowed. "
+                    + "Please enter a month up to %s (current UTC month).".formatted(currentMonth));
+        }
+        return ym;
+    }
+
+    static YearMonth validateYearMonth(YearMonth ym) {
+        if (ym == null) {
+            throw new ValidationException("Year-month must not be empty.");
         }
         YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
         if (ym.isAfter(currentMonth)) {
