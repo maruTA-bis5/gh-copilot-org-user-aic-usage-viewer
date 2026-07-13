@@ -63,10 +63,7 @@ public class OrgCreditPoolBean implements Serializable {
 
     /** Triggered by the Search/Refresh button — redirects to bookmarkable URL. */
     public String search() {
-        if (yearMonth == null) {
-            yearMonth = YearMonth.now(ZoneOffset.UTC);
-        }
-        return "org-credit-pool?faces-redirect=true&yearMonth=%s".formatted(yearMonth);
+        return "org-credit-pool?faces-redirect=true&includeViewParams=true";
     }
 
     // =========================================================================
