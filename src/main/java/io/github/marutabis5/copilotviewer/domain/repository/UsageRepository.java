@@ -42,6 +42,17 @@ public interface UsageRepository {
     OrgCreditPoolOverview findOrgCreditPoolUsage(String org, YearMonth yearMonth);
 
     /**
+     * Retrieves day-by-day organisation-wide AI credit usage for the given month.
+     *
+     * @param org       GitHub organisation name
+     * @param yearMonth the target month
+     * @return a {@link MonthlyUsageReport} with daily/per-model detail; never {@code null}
+     * @throws io.github.marutabis5.copilotviewer.service.GitHubApiException if the upstream
+     *         API call fails after all retries
+     */
+    MonthlyUsageReport findOrgDailyUsage(String org, YearMonth yearMonth);
+
+    /**
      * Retrieves the Copilot billing subscription information for the given org.
      *
      * @param org GitHub organisation name

@@ -178,6 +178,25 @@ class GitHubApiUsageRepositoryTest {
         assertThat(report.getDailyUsages().get(0).getDate().getDayOfMonth()).isEqualTo(14);
     }
 
+    @Test
+    void findOrgDailyUsage_calls_daily_endpoint_without_login_filter() {
+        AiCreditUsageResponse emptyResp = new AiCreditUsageResponse();
+        AiCreditUsageResponse dataResp = buildResponse(10, 1.0);
+        YearMonth feb2025 = YearMonth.of(2025, 2);
+
+        when(billingClient.getAiCreditUsage(eq("org"), eq(2025), eq(2), anyInt(), isNull()))
+                .thenReturn(emptyResp);
+        when(billingClient.getAiCreditUsage("org", 2025, 2, 14, null))
+                .thenReturn(dataResp);
+
+        var report = repository.findOrgDailyUsage("org", feb2025);
+
+        assertThat(report.getDailyUsages()).hasSize(1);
+        assertThat(report.getDailyUsages().get(0).getDate().getDayOfMonth()).isEqualTo(14);
+        verify(billingClient, times(28))
+                .getAiCreditUsage(eq("org"), eq(2025), eq(2), anyInt(), isNull());
+    }
+
     // =========================================================================
     // findCopilotBillingInfo
     // =========================================================================

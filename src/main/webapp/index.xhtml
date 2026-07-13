@@ -120,6 +120,31 @@
                             </div>
                         </div>
 
+                        <h:form id="usageChartForm">
+                            <p:outputPanel id="usageChartPanel" style="margin-top:1.25rem;">
+                                <p:panelGrid columns="2" styleClass="ui-panelgrid-blank chart-controls"
+                                             columnClasses="ui-grid-col-3,ui-grid-col-9">
+                                    <p:outputLabel for="chartSeries" value="Series:" />
+                                    <p:selectOneButton id="chartSeries" value="#{usageBean.chartSeries}" unselectable="false">
+                                        <f:selectItem itemLabel="User" itemValue="user" />
+                                        <f:selectItem itemLabel="Model" itemValue="model" />
+                                        <p:ajax process="@this" update="usageChartPanel" />
+                                    </p:selectOneButton>
+
+                                    <p:outputLabel for="chartMode" value="Mode:" />
+                                    <p:selectOneButton id="chartMode" value="#{usageBean.chartMode}" unselectable="false">
+                                        <f:selectItem itemLabel="Per Day" itemValue="per-day" />
+                                        <f:selectItem itemLabel="Cumulative" itemValue="cumulative" />
+                                        <p:ajax process="@this" update="usageChartPanel" />
+                                    </p:selectOneButton>
+                                </p:panelGrid>
+
+                                <div class="chart-container">
+                                    <p:chart id="usageTrendChart" value="#{usageBean.usageChartJson}" />
+                                </div>
+                            </p:outputPanel>
+                        </h:form>
+
                         <!-- Daily breakdown table -->
                         <p:dataTable value="#{usageBean.report.dailyUsages}"
                                      var="day"

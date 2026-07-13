@@ -4,4 +4,8 @@ body { font-family: sans-serif; margin: 1.5rem; background: #f8f9fa; }
 .summary-card { background: #fff; border: 1px solid #dee2e6; border-radius: 6px; padding: 1rem; text-align: center; }
 .summary-card .value { font-size: 1.75rem; font-weight: bold; color: #0d6efd; }
 .summary-card .label { font-size: 0.85rem; color: #6c757d; margin-top: 0.25rem; }
+.chart-controls { margin-bottom: 0.75rem; }
+.chart-container { position: relative; width: 100%; min-height: 300px; height: 380px; }
+.chart-container div.ui-chart { height: 100%; }
+.chart-container div.ui-chart > canvas { height: 100% !important; }
 .fetch-time { font-size: 0.8rem; color: #6c757d; text-align: right; margin-top: 0.5rem; }

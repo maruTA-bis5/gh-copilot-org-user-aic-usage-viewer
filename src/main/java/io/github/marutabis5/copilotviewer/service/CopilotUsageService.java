@@ -131,6 +131,31 @@ public class CopilotUsageService {
         return overview;
     }
 
+    /**
+     * Fetches day-by-day org-wide AI credit usage for the requested month.
+     *
+     * @param yearMonth target year-month
+     * @return non-null {@link MonthlyUsageReport}
+     * @throws ValidationException  if the yearMonth input fails validation
+     * @throws GitHubApiException   if the upstream API call fails after all retries
+     */
+    public MonthlyUsageReport getOrgDailyUsage(YearMonth yearMonth) {
+        YearMonth ym    = validateYearMonth(yearMonth);
+        String orgValue = validateOrg(org);
+        UsageRepository repository = selectRepository(ym);
+
+        LOG.infof("Org daily usage query started: org=%s, yearMonth=%s", orgValue, ym);
+        long startNs = System.nanoTime();
+
+        MonthlyUsageReport report = repository.findOrgDailyUsage(orgValue, ym);
+
+        long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+        LOG.infof("Org daily usage query completed: org=%s, yearMonth=%s, activeDays=%d, totalGrossQuantity=%.4f, elapsedMs=%d",
+                orgValue, ym, report.getDailyUsages().size(), report.getTotalGrossQuantity(), elapsedMs);
+
+        return report;
+    }
+
     // -------------------------------------------------------------------------
     // Validation
     // -------------------------------------------------------------------------

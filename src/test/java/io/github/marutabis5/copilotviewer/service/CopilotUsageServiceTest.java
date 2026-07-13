@@ -85,6 +85,22 @@ class CopilotUsageServiceTest {
         assertThat(result.isEmpty()).isTrue();
     }
 
+    @Test
+    void getOrgDailyUsage_returns_report_from_repository() {
+        YearMonth ym = YearMonth.of(2025, 1);
+        MonthlyUsageReport expected = buildOrgDailyReport(ym);
+        when(apiRepository.findOrgDailyUsage(TEST_ORG, ym)).thenReturn(expected);
+
+        MonthlyUsageReport result = service.getOrgDailyUsage(ym);
+
+        assertThat(result).isSameAs(expected);
+        assertThat(result.getDailyUsages()).hasSize(2);
+        assertThat(result.getDailyUsages().get(0).getItems())
+                .extracting(UsageItem::getModel)
+                .containsExactly("gpt-4o", "gpt-4.1");
+        verify(apiRepository).findOrgDailyUsage(TEST_ORG, ym);
+    }
+
     // =========================================================================
     // Validation failures – repository must never be called
     // =========================================================================
@@ -137,5 +153,15 @@ class CopilotUsageServiceTest {
                 "credits", 100, 0, 100, 1.0);
         DailyUsage day = new DailyUsage(ym.atDay(1), List.of(item));
         return new MonthlyUsageReport(TEST_ORG, login, ym, List.of(day), Instant.now());
+    }
+
+    private static MonthlyUsageReport buildOrgDailyReport(YearMonth ym) {
+        UsageItem firstModel = new UsageItem("Copilot", "AI Credits", "gpt-4o",
+                "credits", 70, 0, 70, 0.7);
+        UsageItem secondModel = new UsageItem("Copilot", "AI Credits", "gpt-4.1",
+                "credits", 30, 0, 30, 0.3);
+        DailyUsage firstDay = new DailyUsage(ym.atDay(1), List.of(firstModel, secondModel));
+        DailyUsage secondDay = new DailyUsage(ym.atDay(2), List.of(firstModel));
+        return new MonthlyUsageReport(TEST_ORG, "", ym, List.of(firstDay, secondDay), Instant.now());
     }
 }
