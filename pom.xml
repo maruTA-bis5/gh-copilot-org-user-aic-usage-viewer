@@ -18,7 +18,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <wildfly.version>39.0.1.Final</wildfly.version>
     <wildfly.plugin.version>6.0.0.Final</wildfly.plugin.version>
-    <primefaces.version>15.0.16</primefaces.version>
+    <primefaces.version>16.0.0-RC1</primefaces.version>
     <sqlite.jdbc.version>3.47.1.0</sqlite.jdbc.version>
     <junit.jupiter.version>5.11.4</junit.jupiter.version>
     <mockito.version>5.14.2</mockito.version>
@@ -75,7 +75,11 @@
       <groupId>org.primefaces</groupId>
       <artifactId>primefaces</artifactId>
       <version>${primefaces.version}</version>
-      <classifier>jakarta</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.primefaces</groupId>
+      <artifactId>primefaces-themes</artifactId>
+      <version>${primefaces.version}</version>
     </dependency>
 
     <!-- SQLite JDBC – bundled in WAR for direct JDBC access (future use) -->
