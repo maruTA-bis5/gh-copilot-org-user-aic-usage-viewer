@@ -46,6 +46,13 @@ public class SqliteUsageRepository implements UsageRepository {
     }
 
     @Override
+    public MonthlyUsageReport findOrgDailyUsage(String org, YearMonth yearMonth) {
+        throw new UnsupportedOperationException(
+                "SQLite repository is not implemented yet. "
+                + "Wire GitHubApiUsageRepository for all months in the MVP.");
+    }
+
+    @Override
     public Optional<CopilotBillingInfo> findCopilotBillingInfo(String org) {
         throw new UnsupportedOperationException(
                 "SQLite repository is not implemented yet. "

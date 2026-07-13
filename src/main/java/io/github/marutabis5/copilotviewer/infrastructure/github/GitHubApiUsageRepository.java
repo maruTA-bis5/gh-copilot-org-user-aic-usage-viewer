@@ -119,6 +119,35 @@ public class GitHubApiUsageRepository implements UsageRepository {
     }
 
     @Override
+    public MonthlyUsageReport findOrgDailyUsage(String org, YearMonth yearMonth) {
+        LocalDate firstDay = yearMonth.atDay(1);
+        LocalDate lastDay  = yearMonth.atEndOfMonth();
+
+        List<DailyUsage> dailyUsages = new ArrayList<>();
+
+        for (LocalDate date = firstDay; !date.isAfter(lastDay); date = date.plusDays(1)) {
+            AiCreditUsageResponse response;
+            try {
+                response = self.fetchDayWithRetry(
+                        org, null, date.getYear(), date.getMonthValue(), date.getDayOfMonth());
+            } catch (WebApplicationException ex) {
+                int status = ex.getResponse().getStatus();
+                String summary = buildSafeSummary(status);
+                LOG.errorf("GitHub API failed for org daily usage %s %s after retries. HTTP %d: %s",
+                        org, date, status, summary);
+                throw new GitHubApiException(status, summary, ex);
+            }
+
+            List<UsageItem> items = mapItems(response);
+            if (!items.isEmpty()) {
+                dailyUsages.add(new DailyUsage(date, items));
+            }
+        }
+
+        return new MonthlyUsageReport(org, "", yearMonth, dailyUsages, Instant.now());
+    }
+
+    @Override
     public Optional<CopilotBillingInfo> findCopilotBillingInfo(String org) {
         CopilotBillingResponse response;
         try {

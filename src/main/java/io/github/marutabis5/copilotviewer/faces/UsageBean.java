@@ -1,6 +1,7 @@
 package io.github.marutabis5.copilotviewer.faces;
 
 import io.github.marutabis5.copilotviewer.domain.model.MonthlyUsageReport;
+import io.github.marutabis5.copilotviewer.faces.chart.UsageTrendChartJsonBuilder;
 import io.github.marutabis5.copilotviewer.service.CopilotUsageService;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
 import io.github.marutabis5.copilotviewer.service.ValidationException;
@@ -24,9 +25,14 @@ import java.time.format.DateTimeFormatter;
 public class UsageBean implements Serializable {
 
     private static final Logger LOG = Logger.getLogger(UsageBean.class);
+    private static final UsageTrendChartJsonBuilder CHART_JSON_BUILDER = new UsageTrendChartJsonBuilder();
     private static final DateTimeFormatter UTC_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")
                              .withZone(ZoneOffset.UTC);
+    private static final String SERIES_USER = "user";
+    private static final String SERIES_MODEL = "model";
+    private static final String MODE_PER_DAY = "per-day";
+    private static final String MODE_CUMULATIVE = "cumulative";
 
     @Inject
     CopilotUsageService usageService;
@@ -37,6 +43,8 @@ public class UsageBean implements Serializable {
 
     // ---- View state --------------------------------------------------------
     private MonthlyUsageReport report;
+    private String chartSeries = SERIES_USER;
+    private String chartMode = MODE_PER_DAY;
 
     // =========================================================================
     // Actions
@@ -111,6 +119,17 @@ public class UsageBean implements Serializable {
         return report != null && !report.isEmpty();
     }
 
+    public String getUsageChartJson() {
+        if (report == null) {
+            return "";
+        }
+        boolean cumulative = MODE_CUMULATIVE.equals(chartMode);
+        if (SERIES_MODEL.equals(chartSeries)) {
+            return CHART_JSON_BUILDER.buildPerModelSeries(report.getDailyUsages(), cumulative);
+        }
+        return CHART_JSON_BUILDER.buildSingleTotalSeries(report.getDailyUsages(), report.getLogin(), cumulative);
+    }
+
     // =========================================================================
     // Getters / setters
     // =========================================================================
@@ -122,4 +141,14 @@ public class UsageBean implements Serializable {
     public void setYearMonth(YearMonth yearMonth) { this.yearMonth = yearMonth; }
 
     public MonthlyUsageReport getReport() { return report; }
+
+    public String getChartSeries() { return chartSeries; }
+    public void setChartSeries(String chartSeries) {
+        this.chartSeries = SERIES_MODEL.equals(chartSeries) ? SERIES_MODEL : SERIES_USER;
+    }
+
+    public String getChartMode() { return chartMode; }
+    public void setChartMode(String chartMode) {
+        this.chartMode = MODE_CUMULATIVE.equals(chartMode) ? MODE_CUMULATIVE : MODE_PER_DAY;
+    }
 }
