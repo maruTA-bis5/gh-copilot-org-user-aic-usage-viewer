@@ -5,6 +5,11 @@
       xmlns:p="http://primefaces.org/ui"
       xmlns:ui="jakarta.faces.facelets">
 <f:view>
+    <f:metadata>
+        <f:viewParam name="login" value="#{usageBean.login}" />
+        <f:viewParam name="yearMonth" value="#{usageBean.yearMonth}" converter="yearMonthConverter" />
+        <f:viewAction action="#{usageBean.restoreFromParams}" onPostback="false" />
+    </f:metadata>
 <h:head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,6 +22,9 @@
 
             <!-- Search form -->
             <h:form id="searchForm">
+                <p:ajaxExceptionHandler type="jakarta.faces.application.ViewExpiredException"
+                                        onexception="window.location.assign(window.location.href);" />
+                <p:blockUI block="searchButton" widgetVar="usageSearchBlockUi" />
                 <p:messages id="messages" showDetail="true" closable="true">
 			<p:autoUpdate />
 		</p:messages>
@@ -46,15 +54,20 @@
 
                 </p:panelGrid>
 
-                <p:commandButton value="Search"
+                <p:commandButton id="searchButton"
+                                 value="Search"
                                  icon="pi pi-search"
                                  action="#{usageBean.search}"
-                                 update="messages :resultPanel"
+                                 onclick="PF('usageSearchBlockUi').show();"
+                                 ajax="false"
                                  styleClass="ui-button-raised" />
             </h:form>
 
             <!-- Result area (AJAX-updated) -->
-            <p:outputPanel id="resultPanel">
+            <h:form id="resultForm">
+                <p:ajaxExceptionHandler type="jakarta.faces.application.ViewExpiredException"
+                                       onexception="window.location.assign(window.location.href);" />
+                <p:outputPanel id="resultPanel">
 
                 <!-- No data -->
                 <p:panel rendered="#{usageBean.noData and not facesContext.validationFailed}"
@@ -191,7 +204,8 @@
                     </p:panel>
                 </ui:fragment>
 
-            </p:outputPanel>
+                </p:outputPanel>
+            </h:form>
 
         </p:panel>
 

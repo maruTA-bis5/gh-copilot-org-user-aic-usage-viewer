@@ -5,6 +5,10 @@
       xmlns:p="http://primefaces.org/ui"
       xmlns:ui="jakarta.faces.facelets">
 <f:view>
+    <f:metadata>
+        <f:viewParam name="yearMonth" value="#{orgCreditPoolBean.yearMonth}" converter="yearMonthConverter" />
+        <f:viewAction action="#{orgCreditPoolBean.restoreFromParams}" />
+    </f:metadata>
 <h:head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,6 +21,9 @@
 
             <!-- Month selection form -->
             <h:form id="searchForm">
+                <p:ajaxExceptionHandler type="jakarta.faces.application.ViewExpiredException"
+                                        onexception="window.location.href = window.location.href;" />
+                <p:blockUI block="refreshButton" widgetVar="orgSearchBlockUi" />
                 <p:messages id="messages" showDetail="true" closable="true">
                     <p:autoUpdate />
                 </p:messages>
@@ -37,10 +44,12 @@
 
                 </p:panelGrid>
 
-                <p:commandButton value="Refresh"
+                <p:commandButton id="refreshButton"
+                                 value="Refresh"
                                  icon="pi pi-refresh"
                                  action="#{orgCreditPoolBean.search}"
-                                 update="messages :resultPanel"
+                                 onclick="PF('orgSearchBlockUi').show();"
+                                 ajax="false"
                                  styleClass="ui-button-raised" />
             </h:form>
 

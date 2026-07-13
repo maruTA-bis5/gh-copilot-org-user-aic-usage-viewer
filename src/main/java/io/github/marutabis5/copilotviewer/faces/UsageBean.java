@@ -44,16 +44,32 @@ public class UsageBean implements Serializable {
 
     /**
      * Triggered by the Search button.
-     * Validates inputs, fetches the report, and populates view state.
-     * All errors are surfaced through {@link FacesMessage}s so PrimeFaces
-     * {@code <p:messages>} can display them.
+     * Navigates to a bookmarkable URL including {@code login}/{@code yearMonth}
+     * as view parameters.
      */
-    public void search() {
+    public String search() {
+        return "index?faces-redirect=true&includeViewParams=true";
+    }
+
+    /** Restores report state from bookmarkable query parameters on GET requests. */
+    public void restoreFromParams() {
+        if (login == null || login.isBlank() || yearMonth == null) {
+            return;
+        }
+
+        loadReport();
+    }
+
+    // =========================================================================
+    // Private helpers
+    // =========================================================================
+
+    private void loadReport() {
         FacesContext ctx = FacesContext.getCurrentInstance();
         report = null;
 
         try {
-            report = usageService.findUsage(login, yearMonth != null ? yearMonth.toString() : null);
+            report = usageService.findUsage(login, yearMonth.toString());
         } catch (ValidationException e) {
             ctx.addMessage(null, new FacesMessage(
                     FacesMessage.SEVERITY_WARN,

@@ -43,20 +43,27 @@ public class OrgCreditPoolBean implements Serializable {
     // Lifecycle
     // =========================================================================
 
-    /** Defaults to the current UTC month and immediately loads the overview. */
+    /** Initializes default view state. */
     @PostConstruct
     public void init() {
-        yearMonth = YearMonth.now(ZoneOffset.UTC);
-        loadOverview();
+        error = false;
     }
 
     // =========================================================================
     // Actions
     // =========================================================================
 
-    /** Triggered by the Search/Refresh button — reloads data for the selected month. */
-    public void search() {
+    /** Restores state from URL params and loads overview on initial GET. */
+    public void restoreFromParams() {
+        if (yearMonth == null) {
+            yearMonth = YearMonth.now(ZoneOffset.UTC);
+        }
         loadOverview();
+    }
+
+    /** Triggered by the Search/Refresh button — redirects to bookmarkable URL. */
+    public String search() {
+        return "org-credit-pool?faces-redirect=true&includeViewParams=true";
     }
 
     // =========================================================================
