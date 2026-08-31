@@ -83,7 +83,7 @@ public class OrgCreditPoolBean implements Serializable {
 
     /** {@code true} when capacity can be calculated from the current seat count. */
     public boolean isCapacityAvailable() {
-        return yearMonth != null && yearMonth.equals(YearMonth.now(ZoneOffset.UTC));
+        return yearMonth != null && yearMonth.equals(currentUtcMonth());
     }
 
     /** {@code true} when the current overview loaded but the pool capacity is zero. */
@@ -91,6 +91,10 @@ public class OrgCreditPoolBean implements Serializable {
         return creditPool != null
                 && isCapacityAvailable()
                 && creditPool.getTotalPoolCapacity().signum() == 0;
+    }
+
+    YearMonth currentUtcMonth() {
+        return YearMonth.now(ZoneOffset.UTC);
     }
 
     /** {@code true} when the last load attempt produced an error. */

@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.YearMonth;
-import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -15,18 +14,19 @@ import static org.mockito.Mockito.when;
 
 class OrgCreditPoolBeanTest {
 
+    private static final YearMonth CURRENT_MONTH = YearMonth.of(2026, 8);
+
     @Test
     void currentMonth_exposesCapacity() {
-        YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
-        OrgCreditPoolBean bean = new OrgCreditPoolBean();
-        bean.setYearMonth(currentMonth);
+        OrgCreditPoolBean bean = beanWithFixedCurrentMonth();
+        bean.setYearMonth(CURRENT_MONTH);
 
         assertThat(bean.isCapacityAvailable()).isTrue();
     }
 
     @Test
     void pastMonth_hidesCapacity() {
-        YearMonth pastMonth = YearMonth.now(ZoneOffset.UTC).minusMonths(1);
+        YearMonth pastMonth = CURRENT_MONTH.minusMonths(1);
         CopilotUsageService usageService = mock(CopilotUsageService.class);
         when(usageService.getOrgCreditPoolOverview(pastMonth))
                 .thenReturn(new OrgCreditPoolOverview(
@@ -39,7 +39,7 @@ class OrgCreditPoolBeanTest {
                         BigDecimal.ZERO,
                         Instant.EPOCH));
 
-        OrgCreditPoolBean bean = new OrgCreditPoolBean();
+        OrgCreditPoolBean bean = beanWithFixedCurrentMonth();
         bean.usageService = usageService;
         bean.setYearMonth(pastMonth);
         bean.restoreFromParams();
@@ -47,5 +47,14 @@ class OrgCreditPoolBeanTest {
         assertThat(bean.getCreditPool()).isNotNull();
         assertThat(bean.isCapacityAvailable()).isFalse();
         assertThat(bean.isNoData()).isFalse();
+    }
+
+    private static OrgCreditPoolBean beanWithFixedCurrentMonth() {
+        return new OrgCreditPoolBean() {
+            @Override
+            YearMonth currentUtcMonth() {
+                return CURRENT_MONTH;
+            }
+        };
     }
 }
