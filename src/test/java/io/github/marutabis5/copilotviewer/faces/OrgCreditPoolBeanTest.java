@@ -17,10 +17,16 @@ class OrgCreditPoolBeanTest {
     private static final YearMonth CURRENT_MONTH = YearMonth.of(2026, 8);
 
     @Test
-    void currentMonth_exposesCapacity() {
-        OrgCreditPoolBean bean = beanWithFixedCurrentMonth();
-        bean.setYearMonth(CURRENT_MONTH);
+    void missingMonth_defaultsToCurrentMonthAndExposesCapacity() {
+        CopilotUsageService usageService = mock(CopilotUsageService.class);
+        when(usageService.getOrgCreditPoolOverview(CURRENT_MONTH))
+                .thenReturn(overview(CURRENT_MONTH, BigDecimal.TEN));
 
+        OrgCreditPoolBean bean = beanWithFixedCurrentMonth();
+        bean.usageService = usageService;
+        bean.restoreFromParams();
+
+        assertThat(bean.getYearMonth()).isEqualTo(CURRENT_MONTH);
         assertThat(bean.isCapacityAvailable()).isTrue();
     }
 
@@ -29,15 +35,7 @@ class OrgCreditPoolBeanTest {
         YearMonth pastMonth = CURRENT_MONTH.minusMonths(1);
         CopilotUsageService usageService = mock(CopilotUsageService.class);
         when(usageService.getOrgCreditPoolOverview(pastMonth))
-                .thenReturn(new OrgCreditPoolOverview(
-                        "test-org",
-                        pastMonth,
-                        BigDecimal.TEN,
-                        BigDecimal.ONE,
-                        BigDecimal.TEN,
-                        BigDecimal.ZERO,
-                        BigDecimal.ZERO,
-                        Instant.EPOCH));
+                .thenReturn(overview(pastMonth, BigDecimal.ZERO));
 
         OrgCreditPoolBean bean = beanWithFixedCurrentMonth();
         bean.usageService = usageService;
@@ -47,6 +45,18 @@ class OrgCreditPoolBeanTest {
         assertThat(bean.getCreditPool()).isNotNull();
         assertThat(bean.isCapacityAvailable()).isFalse();
         assertThat(bean.isNoData()).isFalse();
+    }
+
+    private static OrgCreditPoolOverview overview(YearMonth yearMonth, BigDecimal capacity) {
+        return new OrgCreditPoolOverview(
+                "test-org",
+                yearMonth,
+                BigDecimal.TEN,
+                BigDecimal.ONE,
+                BigDecimal.TEN,
+                BigDecimal.ZERO,
+                capacity,
+                Instant.EPOCH);
     }
 
     private static OrgCreditPoolBean beanWithFixedCurrentMonth() {

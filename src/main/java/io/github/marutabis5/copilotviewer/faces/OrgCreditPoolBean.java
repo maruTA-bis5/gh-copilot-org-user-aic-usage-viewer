@@ -56,7 +56,7 @@ public class OrgCreditPoolBean implements Serializable {
     /** Restores state from URL params and loads overview on initial GET. */
     public void restoreFromParams() {
         if (yearMonth == null) {
-            yearMonth = YearMonth.now(ZoneOffset.UTC);
+            yearMonth = currentUtcMonth();
         }
         loadOverview();
     }
