@@ -56,7 +56,7 @@ public class OrgCreditPoolBean implements Serializable {
     /** Restores state from URL params and loads overview on initial GET. */
     public void restoreFromParams() {
         if (yearMonth == null) {
-            yearMonth = YearMonth.now(ZoneOffset.UTC);
+            yearMonth = currentUtcMonth();
         }
         loadOverview();
     }
@@ -81,9 +81,20 @@ public class OrgCreditPoolBean implements Serializable {
         return creditPool != null;
     }
 
-    /** {@code true} when the overview loaded but the pool capacity is zero (no seats/plan). */
+    /** {@code true} when capacity can be calculated from the current seat count. */
+    public boolean isCapacityAvailable() {
+        return yearMonth != null && yearMonth.equals(currentUtcMonth());
+    }
+
+    /** {@code true} when the current overview loaded but the pool capacity is zero. */
     public boolean isNoData() {
-        return creditPool != null && creditPool.getTotalPoolCapacity().signum() == 0;
+        return creditPool != null
+                && isCapacityAvailable()
+                && creditPool.getTotalPoolCapacity().signum() == 0;
+    }
+
+    YearMonth currentUtcMonth() {
+        return YearMonth.now(ZoneOffset.UTC);
     }
 
     /** {@code true} when the last load attempt produced an error. */
@@ -105,7 +116,6 @@ public class OrgCreditPoolBean implements Serializable {
     // =========================================================================
 
     private void loadOverview() {
-        FacesContext ctx = FacesContext.getCurrentInstance();
         creditPool = null;
         error = false;
 
@@ -113,7 +123,7 @@ public class OrgCreditPoolBean implements Serializable {
             creditPool = usageService.getOrgCreditPoolOverview(yearMonth);
         } catch (ValidationException e) {
             error = true;
-            ctx.addMessage(null, new FacesMessage(
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
                     FacesMessage.SEVERITY_WARN,
                     "Invalid input",
                     e.getMessage()));
@@ -121,14 +131,14 @@ public class OrgCreditPoolBean implements Serializable {
             error = true;
             LOG.warnf("GitHub API error for org credit pool month=%s: HTTP %d – %s",
                     yearMonth, e.getHttpStatus(), e.getSummary());
-            ctx.addMessage(null, new FacesMessage(
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
                     FacesMessage.SEVERITY_ERROR,
                     "GitHub API Error (HTTP %d)".formatted(e.getHttpStatus()),
                     e.getSummary()));
         } catch (Exception e) {
             error = true;
             LOG.errorf(e, "Unexpected error fetching org credit pool for month=%s", yearMonth);
-            ctx.addMessage(null, new FacesMessage(
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
                     FacesMessage.SEVERITY_FATAL,
                     "Unexpected error",
                     "An unexpected error occurred. Please contact the administrator."));
