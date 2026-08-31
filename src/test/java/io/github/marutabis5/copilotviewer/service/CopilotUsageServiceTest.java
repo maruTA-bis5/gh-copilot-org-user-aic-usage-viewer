@@ -2,6 +2,7 @@ package io.github.marutabis5.copilotviewer.service;
 
 import io.github.marutabis5.copilotviewer.domain.model.DailyUsage;
 import io.github.marutabis5.copilotviewer.domain.model.MonthlyUsageReport;
+import io.github.marutabis5.copilotviewer.domain.model.OrgCreditPoolOverview;
 import io.github.marutabis5.copilotviewer.domain.model.UsageItem;
 import io.github.marutabis5.copilotviewer.infrastructure.github.GitHubApiUsageRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -128,6 +129,20 @@ class CopilotUsageServiceTest {
                 .isEqualTo(403);
     }
 
+    @Test
+    void getOrgCreditPoolOverview_pastMonth_doesNotCalculateCapacityFromCurrentSeats() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC).minusMonths(1);
+        OrgCreditPoolOverview usage = buildCreditPoolOverview(ym);
+        when(apiRepository.findOrgCreditPoolUsage(TEST_ORG, ym)).thenReturn(usage);
+
+        OrgCreditPoolOverview result = service.getOrgCreditPoolOverview(ym);
+
+        assertThat(result.getTotalDiscountQuantity()).isEqualByComparingTo("100");
+        assertThat(result.getTotalPoolCapacity()).isZero();
+        verify(apiRepository).findOrgCreditPoolUsage(TEST_ORG, ym);
+        verify(apiRepository, never()).findCopilotBillingInfo(anyString());
+    }
+
     // =========================================================================
     // Helpers
     // =========================================================================
@@ -137,5 +152,12 @@ class CopilotUsageServiceTest {
                 "credits", 100, 0, 100, 1.0);
         DailyUsage day = new DailyUsage(ym.atDay(1), List.of(item));
         return new MonthlyUsageReport(TEST_ORG, login, ym, List.of(day), Instant.now());
+    }
+
+    private static OrgCreditPoolOverview buildCreditPoolOverview(YearMonth ym) {
+        return new OrgCreditPoolOverview(TEST_ORG, ym,
+                new java.math.BigDecimal("100"), new java.math.BigDecimal("100"),
+                java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO,
+                java.math.BigDecimal.ZERO, Instant.now());
     }
 }

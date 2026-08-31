@@ -93,20 +93,20 @@ public class CopilotUsageService {
         LOG.infof("Org credit pool query started: org=%s, yearMonth=%s", orgValue, ym);
         long startNs = System.nanoTime();
 
-        CopilotBillingInfo billingInfo = apiRepository.findCopilotBillingInfo(orgValue)
-                .orElseThrow(() -> new GitHubApiException(404,
-                        "Copilot billing information is unavailable for org: " + orgValue, null));
-
-        BigDecimal poolCapacity;
-        try {
-            poolCapacity = PoolCapacityCalculator.calculatePoolCapacity(
-                    billingInfo.getPlanType(), billingInfo.getTotalSeats(), ym);
-        } catch (IllegalArgumentException e) {
-            throw new GitHubApiException(422,
-                    "Unrecognized Copilot plan type returned by GitHub API: '"
-                            + billingInfo.getPlanType() + "'", e);
+        BigDecimal poolCapacity = BigDecimal.ZERO;
+        if (ym.equals(YearMonth.now(ZoneOffset.UTC))) {
+            CopilotBillingInfo billingInfo = apiRepository.findCopilotBillingInfo(orgValue)
+                    .orElseThrow(() -> new GitHubApiException(404,
+                            "Copilot billing information is unavailable for org: " + orgValue, null));
+            try {
+                poolCapacity = PoolCapacityCalculator.calculatePoolCapacity(
+                        billingInfo.getPlanType(), billingInfo.getTotalSeats(), ym);
+            } catch (IllegalArgumentException e) {
+                throw new GitHubApiException(422,
+                        "Unrecognized Copilot plan type returned by GitHub API: '"
+                                + billingInfo.getPlanType() + "'", e);
+            }
         }
-
         OrgCreditPoolOverview rawOverview = apiRepository.findOrgCreditPoolUsage(orgValue, ym);
 
         OrgCreditPoolOverview overview = new OrgCreditPoolOverview(

@@ -77,14 +77,16 @@
                                 <div class="value">#{orgCreditPoolBean.creditPool.yearMonth}</div>
                                 <div class="label">Billing Period</div>
                             </div>
-                            <div class="summary-card">
-                                <div class="value">
-                                    <h:outputText value="#{orgCreditPoolBean.creditPool.totalPoolCapacity}">
-                                        <f:convertNumber maxFractionDigits="0" groupingUsed="true" />
-                                    </h:outputText>
+                            <ui:fragment rendered="#{orgCreditPoolBean.capacityAvailable}">
+                                <div class="summary-card">
+                                    <div class="value">
+                                        <h:outputText value="#{orgCreditPoolBean.creditPool.totalPoolCapacity}">
+                                            <f:convertNumber maxFractionDigits="0" groupingUsed="true" />
+                                        </h:outputText>
+                                    </div>
+                                    <div class="label">Total Pool Capacity (credits)</div>
                                 </div>
-                                <div class="label">Total Pool Capacity (credits)</div>
-                            </div>
+                            </ui:fragment>
                             <div class="summary-card">
                                 <div class="value">
                                     <h:outputText value="#{orgCreditPoolBean.creditPool.totalDiscountQuantity}">
@@ -93,14 +95,16 @@
                                 </div>
                                 <div class="label">Included Credits Used</div>
                             </div>
-                            <div class="summary-card">
-                                <div class="value">
-                                    <h:outputText value="#{orgCreditPoolBean.creditPool.remainingPool}">
-                                        <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
-                                    </h:outputText>
+                            <ui:fragment rendered="#{orgCreditPoolBean.capacityAvailable}">
+                                <div class="summary-card">
+                                    <div class="value">
+                                        <h:outputText value="#{orgCreditPoolBean.creditPool.remainingPool}">
+                                            <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                        </h:outputText>
+                                    </div>
+                                    <div class="label">Remaining Pool Credits</div>
                                 </div>
-                                <div class="label">Remaining Pool Credits</div>
-                            </div>
+                            </ui:fragment>
                             <div class="summary-card">
                                 <div class="value">
                                     <h:outputText value="#{orgCreditPoolBean.creditPool.totalGrossQuantity}">
@@ -120,7 +124,8 @@
                         </div>
 
                         <!-- Pool usage progress bar -->
-                        <p:progressBar value="#{orgCreditPoolBean.creditPool.usageRatePercent}"
+                        <p:progressBar rendered="#{orgCreditPoolBean.capacityAvailable}"
+                                       value="#{orgCreditPoolBean.creditPool.usageRatePercent}"
                                        displayValue="#{orgCreditPoolBean.creditPool.usageRatePercent}%"
                                        style="margin-bottom:1rem;" />
 
