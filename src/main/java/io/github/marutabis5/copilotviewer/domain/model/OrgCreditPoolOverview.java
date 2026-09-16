@@ -110,7 +110,9 @@ public final class OrgCreditPoolOverview implements Serializable {
     public BigDecimal getCreditBudgetOverage() { return creditBudgetOverage; }
     public boolean isAdditionalCreditBudgetSet() { return additionalCreditBudget != null; }
     public boolean isCreditBudgetOverageVisible() {
-        return isAdditionalCreditBudgetSet() && !preventFurtherUsage;
+        return isAdditionalCreditBudgetSet()
+                && !preventFurtherUsage
+                && creditBudgetOverage.compareTo(BigDecimal.ZERO) > 0;
     }
     public Instant getFetchedAt() { return fetchedAt; }
 

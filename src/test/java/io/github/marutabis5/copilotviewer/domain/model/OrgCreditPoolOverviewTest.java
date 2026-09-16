@@ -53,4 +53,22 @@ class OrgCreditPoolOverviewTest {
         assertThat(overview.getCreditBudgetOverage()).isEqualByComparingTo("0");
         assertThat(overview.isCreditBudgetOverageVisible()).isFalse();
     }
+
+    @Test
+    void hides_overage_section_when_additional_usage_stays_within_budget() {
+        OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
+                "org",
+                YearMonth.of(2026, 9),
+                new BigDecimal("30"),
+                new BigDecimal("20"),
+                new BigDecimal("8"),
+                new BigDecimal("6"),
+                new BigDecimal("100"),
+                new BigDecimal("10"),
+                false,
+                Instant.EPOCH);
+
+        assertThat(overview.getCreditBudgetOverage()).isEqualByComparingTo("0");
+        assertThat(overview.isCreditBudgetOverageVisible()).isFalse();
+    }
 }
