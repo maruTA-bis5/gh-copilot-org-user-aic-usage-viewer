@@ -89,10 +89,13 @@ public interface GitHubBillingClient extends AutoCloseable {
     CopilotBillingResponse getCopilotBilling(@PathParam("org") String org);
 
     /**
-     * Fetches organization budgets scoped to AI credits.
+     * Fetches one page of budgets for an organization.
      *
-     * @param org organisation name
-     * @return parsed budgets response; never {@code null}
+     * @param org organization name
+     * @param scope budget scope used to filter the response
+     * @param perPage maximum number of budgets requested per page
+     * @param page one-based page number
+     * @return the parsed budgets page
      */
     @GET
     @Path("/organizations/{org}/settings/billing/budgets")

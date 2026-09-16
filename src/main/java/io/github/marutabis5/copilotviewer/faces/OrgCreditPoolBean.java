@@ -86,7 +86,9 @@ public class OrgCreditPoolBean implements Serializable {
         return yearMonth != null && yearMonth.equals(currentUtcMonth());
     }
 
-    /** {@code true} when the current overview loaded but the pool capacity is zero. */
+    /**
+     * {@code true} when the current-month overview has zero included capacity and no additional budget.
+     */
     public boolean isNoData() {
         return creditPool != null
                 && isCapacityAvailable()

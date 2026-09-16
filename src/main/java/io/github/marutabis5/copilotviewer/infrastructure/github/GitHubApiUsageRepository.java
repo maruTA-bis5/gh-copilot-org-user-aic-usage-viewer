@@ -250,6 +250,12 @@ public class GitHubApiUsageRepository implements UsageRepository {
                 .toList();
     }
 
+    /**
+     * Finds the first organization-wide AI credits budget, scanning subsequent pages as needed.
+     *
+     * @param org organization whose budgets are searched
+     * @return the matching budget, or an empty optional after the final page
+     */
     private Optional<BudgetDto> findOrganizationAiCreditsBudget(String org) {
         int page = 1;
         while (true) {

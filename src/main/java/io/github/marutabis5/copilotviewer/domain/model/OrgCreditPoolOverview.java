@@ -37,6 +37,22 @@ public final class OrgCreditPoolOverview implements Serializable {
     private final BigDecimal additionalBudgetOverageAmount;
     private final Instant fetchedAt;
 
+    /**
+     * Creates an overview and derives its included-pool and additional-budget metrics.
+     *
+     * @param org organization name
+     * @param yearMonth month covered by the overview
+     * @param totalGrossQuantity total gross credit quantity
+     * @param totalDiscountQuantity total included credit quantity
+     * @param totalNetQuantity total additional credit quantity
+     * @param totalNetAmount total cost of additional credits
+     * @param totalPoolCapacity included credit capacity
+     * @param additionalBudgetAmount configured additional-credit budget, or {@code null} if unset
+     * @param preventFurtherUsage whether usage stops when the additional budget is exhausted
+     * @param fetchedAt time at which the source data was fetched
+     * @throws NullPointerException if any reference argument except
+     *         {@code additionalBudgetAmount} is {@code null}
+     */
     public OrgCreditPoolOverview(String org,
                                  YearMonth yearMonth,
                                  BigDecimal totalGrossQuantity,
@@ -81,6 +97,7 @@ public final class OrgCreditPoolOverview implements Serializable {
                 : totalNetAmount.subtract(additionalBudgetAmount).max(BigDecimal.ZERO);
     }
 
+    /** Creates an overview with no additional-credit budget configured. */
     public OrgCreditPoolOverview(String org,
                                  YearMonth yearMonth,
                                  BigDecimal totalGrossQuantity,
@@ -100,15 +117,41 @@ public final class OrgCreditPoolOverview implements Serializable {
     public BigDecimal getTotalNetQuantity() { return totalNetQuantity; }
     public BigDecimal getTotalNetAmount() { return totalNetAmount; }
     public BigDecimal getTotalPoolCapacity() { return totalPoolCapacity; }
+
+    /** Returns the configured additional-credit budget, or {@code null} if none is set. */
     public BigDecimal getAdditionalBudgetAmount() { return additionalBudgetAmount; }
+
+    /** Returns whether additional usage is blocked after the configured budget is exhausted. */
     public boolean isPreventFurtherUsage() { return preventFurtherUsage; }
     public BigDecimal getRemainingPool() { return remainingPool; }
     public BigDecimal getUsageRatePercent() { return usageRatePercent; }
+
+    /**
+     * Returns the lesser of the total net amount and configured additional budget,
+     * or zero if no budget is set.
+     */
     public BigDecimal getAdditionalBudgetUsedAmount() { return additionalBudgetUsedAmount; }
+
+    /**
+     * Returns the used additional budget as a percentage rounded to four decimal places,
+     * or zero if the budget is unset or zero.
+     */
     public BigDecimal getAdditionalBudgetUsageRatePercent() { return additionalBudgetUsageRatePercent; }
+
+    /** Returns the additional budget minus its used amount, or zero if no budget is set. */
     public BigDecimal getRemainingAdditionalBudgetAmount() { return remainingAdditionalBudgetAmount; }
+
+    /** Returns the positive total net amount above the budget, or zero if no budget is set. */
     public BigDecimal getAdditionalBudgetOverageAmount() { return additionalBudgetOverageAmount; }
+
+    /** Returns whether an additional-credit budget is configured. */
     public boolean isAdditionalBudgetSet() { return additionalBudgetAmount != null; }
+
+    /**
+     * Returns whether a positive overage should be displayed.
+     *
+     * <p>Overage is hidden when no additional budget is set or further usage is prevented.</p>
+     */
     public boolean isAdditionalBudgetOverageVisible() {
         return isAdditionalBudgetSet()
                 && !preventFurtherUsage

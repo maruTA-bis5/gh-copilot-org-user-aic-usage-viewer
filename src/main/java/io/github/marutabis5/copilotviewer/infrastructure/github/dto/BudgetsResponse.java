@@ -15,6 +15,7 @@ public class BudgetsResponse {
     @JsonbProperty("has_next_page")
     private boolean hasNextPage;
 
+    /** Returns the budgets in this page, or an empty list if the field was omitted. */
     public List<BudgetDto> getBudgets() {
         return budgets != null ? budgets : Collections.emptyList();
     }
