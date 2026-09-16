@@ -90,6 +90,10 @@ webapp/
 GitHub API version: **2026-03-10**  
 Required permission: **Organization administration: read**
 
+`GET /organizations/{org}/settings/billing/budgets`  
+GitHub API version: **2026-03-10**  
+Required permission: **Organization administration: read**
+
 ## License
 
 [MIT](LICENSE) © 2026 Takayuki Maruyama

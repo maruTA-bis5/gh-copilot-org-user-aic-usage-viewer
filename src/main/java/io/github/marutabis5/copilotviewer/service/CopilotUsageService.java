@@ -117,6 +117,8 @@ public class CopilotUsageService {
                 rawOverview.getTotalNetQuantity(),
                 rawOverview.getTotalNetAmount(),
                 poolCapacity,
+                rawOverview.getAdditionalCreditBudget(),
+                rawOverview.isPreventFurtherUsage(),
                 rawOverview.getFetchedAt());
 
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;

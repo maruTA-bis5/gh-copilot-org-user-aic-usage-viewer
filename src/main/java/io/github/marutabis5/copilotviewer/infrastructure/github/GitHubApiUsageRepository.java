@@ -7,6 +7,8 @@ import io.github.marutabis5.copilotviewer.domain.model.OrgCreditPoolOverview;
 import io.github.marutabis5.copilotviewer.domain.model.UsageItem;
 import io.github.marutabis5.copilotviewer.domain.repository.UsageRepository;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsageResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetDto;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetsResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
@@ -40,6 +42,9 @@ import java.util.function.Supplier;
 public class GitHubApiUsageRepository implements UsageRepository {
 
     private static final Logger LOG = Logger.getLogger(GitHubApiUsageRepository.class);
+    private static final String ORGANIZATION_SCOPE = "organization";
+    private static final String BUNDLE_PRICING = "BundlePricing";
+    private static final String AI_CREDITS = "ai_credits";
 
     /** Statuses that warrant a retry (delegated to {@link Retry} via rethrowing). */
     private static boolean isRetryable(int status) {
@@ -100,6 +105,17 @@ public class GitHubApiUsageRepository implements UsageRepository {
             throw new GitHubApiException(status, summary, ex);
         }
 
+        BudgetsResponse budgetsResponse;
+        try {
+            budgetsResponse = self.fetchBudgetsWithRetry(org);
+        } catch (WebApplicationException ex) {
+            int status = ex.getResponse().getStatus();
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API failed for org budgets %s after retries. HTTP %d: %s",
+                    org, status, summary);
+            throw new GitHubApiException(status, summary, ex);
+        }
+
         BigDecimal totalGross    = BigDecimal.ZERO;
         BigDecimal totalDiscount = BigDecimal.ZERO;
         BigDecimal totalNet      = BigDecimal.ZERO;
@@ -112,9 +128,17 @@ public class GitHubApiUsageRepository implements UsageRepository {
             totalAmount   = totalAmount.add(BigDecimal.valueOf(dto.getNetAmount()));
         }
 
+        Optional<BudgetDto> orgBudget = budgetsResponse.getBudgets().stream()
+                .filter(dto -> ORGANIZATION_SCOPE.equalsIgnoreCase(dto.getBudgetScope()))
+                .filter(dto -> BUNDLE_PRICING.equalsIgnoreCase(dto.getBudgetType()))
+                .filter(dto -> AI_CREDITS.equalsIgnoreCase(dto.getBudgetProductSku()))
+                .findFirst();
+
         return new OrgCreditPoolOverview(org, yearMonth,
                 totalGross, totalDiscount, totalNet, totalAmount,
                 BigDecimal.ZERO, // poolCapacity must be set by the caller via PoolCapacityCalculator
+                orgBudget.map(BudgetDto::getBudgetAmount).map(BigDecimal::valueOf).orElse(null),
+                orgBudget.map(BudgetDto::isPreventFurtherUsage).orElse(false),
                 Instant.now());
     }
 
@@ -190,6 +214,14 @@ public class GitHubApiUsageRepository implements UsageRepository {
         return executeWithRetryHandling(
                 () -> billingClient.getCopilotBilling(org),
                 "copilot billing %s".formatted(org));
+    }
+
+    @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
+           retryOn = WebApplicationException.class, jitter = 0)
+    BudgetsResponse fetchBudgetsWithRetry(String org) {
+        return executeWithRetryHandling(
+                () -> billingClient.getBudgets(org, ORGANIZATION_SCOPE, 100),
+                "budgets %s".formatted(org));
     }
 
     private <T> T executeWithRetryHandling(Supplier<T> action, String context) {

@@ -1,7 +1,9 @@
 package io.github.marutabis5.copilotviewer.service;
 
+import io.github.marutabis5.copilotviewer.domain.model.CopilotBillingInfo;
 import io.github.marutabis5.copilotviewer.domain.model.DailyUsage;
 import io.github.marutabis5.copilotviewer.domain.model.MonthlyUsageReport;
+import io.github.marutabis5.copilotviewer.domain.model.OrgCreditPoolOverview;
 import io.github.marutabis5.copilotviewer.domain.model.UsageItem;
 import io.github.marutabis5.copilotviewer.infrastructure.github.GitHubApiUsageRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -126,6 +129,34 @@ class CopilotUsageServiceTest {
                 .isInstanceOf(GitHubApiException.class)
                 .extracting(e -> ((GitHubApiException) e).getHttpStatus())
                 .isEqualTo(403);
+    }
+
+    @Test
+    void getOrgCreditPoolOverview_preserves_budget_information() {
+        YearMonth ym = YearMonth.of(2026, 9);
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(2, "business")));
+        when(apiRepository.findOrgCreditPoolUsage(TEST_ORG, ym))
+                .thenReturn(new OrgCreditPoolOverview(
+                        TEST_ORG,
+                        ym,
+                        new java.math.BigDecimal("30"),
+                        new java.math.BigDecimal("20"),
+                        new java.math.BigDecimal("12"),
+                        new java.math.BigDecimal("6"),
+                        java.math.BigDecimal.ZERO,
+                        new java.math.BigDecimal("10"),
+                        true,
+                        Instant.EPOCH));
+
+        OrgCreditPoolOverview result = service.getOrgCreditPoolOverview(ym);
+
+        assertThat(result.getTotalPoolCapacity()).isEqualByComparingTo("3800");
+        assertThat(result.getAdditionalCreditBudget()).isEqualByComparingTo("10");
+        assertThat(result.isPreventFurtherUsage()).isTrue();
+        assertThat(result.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("10");
+        assertThat(result.getRemainingAdditionalCredits()).isEqualByComparingTo("0");
+        assertThat(result.getCreditBudgetOverage()).isEqualByComparingTo("2");
     }
 
     // =========================================================================

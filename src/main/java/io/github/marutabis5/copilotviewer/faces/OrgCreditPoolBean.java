@@ -90,7 +90,8 @@ public class OrgCreditPoolBean implements Serializable {
     public boolean isNoData() {
         return creditPool != null
                 && isCapacityAvailable()
-                && creditPool.getTotalPoolCapacity().signum() == 0;
+                && creditPool.getTotalPoolCapacity().signum() == 0
+                && !creditPool.isAdditionalCreditBudgetSet();
     }
 
     YearMonth currentUtcMonth() {

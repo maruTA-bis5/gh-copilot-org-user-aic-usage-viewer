@@ -47,7 +47,26 @@ class OrgCreditPoolBeanTest {
         assertThat(bean.isNoData()).isFalse();
     }
 
+    @Test
+    void currentMonth_with_additional_budget_is_not_treated_as_noData() {
+        CopilotUsageService usageService = mock(CopilotUsageService.class);
+        when(usageService.getOrgCreditPoolOverview(CURRENT_MONTH))
+                .thenReturn(overview(CURRENT_MONTH, BigDecimal.ZERO, new BigDecimal("10"), false));
+
+        OrgCreditPoolBean bean = beanWithFixedCurrentMonth();
+        bean.usageService = usageService;
+        bean.restoreFromParams();
+
+        assertThat(bean.isNoData()).isFalse();
+    }
+
     private static OrgCreditPoolOverview overview(YearMonth yearMonth, BigDecimal capacity) {
+        return overview(yearMonth, capacity, null, false);
+    }
+
+    private static OrgCreditPoolOverview overview(YearMonth yearMonth, BigDecimal capacity,
+                                                  BigDecimal additionalBudget,
+                                                  boolean preventFurtherUsage) {
         return new OrgCreditPoolOverview(
                 "test-org",
                 yearMonth,
@@ -56,6 +75,8 @@ class OrgCreditPoolBeanTest {
                 BigDecimal.TEN,
                 BigDecimal.ZERO,
                 capacity,
+                additionalBudget,
+                preventFurtherUsage,
                 Instant.EPOCH);
     }
 
