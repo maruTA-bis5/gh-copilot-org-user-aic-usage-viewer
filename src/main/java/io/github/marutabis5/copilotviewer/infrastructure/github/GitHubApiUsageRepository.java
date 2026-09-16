@@ -105,9 +105,9 @@ public class GitHubApiUsageRepository implements UsageRepository {
             throw new GitHubApiException(status, summary, ex);
         }
 
-        BudgetsResponse budgetsResponse;
+        Optional<BudgetDto> orgBudget;
         try {
-            budgetsResponse = self.fetchBudgetsWithRetry(org);
+            orgBudget = findOrganizationAiCreditsBudget(org);
         } catch (WebApplicationException ex) {
             int status = ex.getResponse().getStatus();
             String summary = buildSafeSummary(status);
@@ -127,12 +127,6 @@ public class GitHubApiUsageRepository implements UsageRepository {
             totalNet      = totalNet.add(BigDecimal.valueOf(dto.getNetQuantity()));
             totalAmount   = totalAmount.add(BigDecimal.valueOf(dto.getNetAmount()));
         }
-
-        Optional<BudgetDto> orgBudget = budgetsResponse.getBudgets().stream()
-                .filter(dto -> ORGANIZATION_SCOPE.equalsIgnoreCase(dto.getBudgetScope()))
-                .filter(dto -> BUNDLE_PRICING.equalsIgnoreCase(dto.getBudgetType()))
-                .filter(dto -> AI_CREDITS.equalsIgnoreCase(dto.getBudgetProductSku()))
-                .findFirst();
 
         return new OrgCreditPoolOverview(org, yearMonth,
                 totalGross, totalDiscount, totalNet, totalAmount,
@@ -218,10 +212,10 @@ public class GitHubApiUsageRepository implements UsageRepository {
 
     @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
            retryOn = WebApplicationException.class, jitter = 0)
-    BudgetsResponse fetchBudgetsWithRetry(String org) {
+    BudgetsResponse fetchBudgetsWithRetry(String org, int page) {
         return executeWithRetryHandling(
-                () -> billingClient.getBudgets(org, ORGANIZATION_SCOPE, 100),
-                "budgets %s".formatted(org));
+                () -> billingClient.getBudgets(org, ORGANIZATION_SCOPE, 100, page),
+                "budgets %s page %d".formatted(org, page));
     }
 
     private <T> T executeWithRetryHandling(Supplier<T> action, String context) {
@@ -254,6 +248,22 @@ public class GitHubApiUsageRepository implements UsageRepository {
                         dto.getNetQuantity(),
                         dto.getNetAmount()))
                 .toList();
+    }
+
+    private Optional<BudgetDto> findOrganizationAiCreditsBudget(String org) {
+        int page = 1;
+        while (true) {
+            BudgetsResponse response = self.fetchBudgetsWithRetry(org, page);
+            Optional<BudgetDto> budget = response.getBudgets().stream()
+                    .filter(dto -> ORGANIZATION_SCOPE.equalsIgnoreCase(dto.getBudgetScope()))
+                    .filter(dto -> BUNDLE_PRICING.equalsIgnoreCase(dto.getBudgetType()))
+                    .filter(dto -> AI_CREDITS.equalsIgnoreCase(dto.getBudgetProductSku()))
+                    .findFirst();
+            if (budget.isPresent() || !response.isHasNextPage()) {
+                return budget;
+            }
+            page++;
+        }
     }
 
     /**

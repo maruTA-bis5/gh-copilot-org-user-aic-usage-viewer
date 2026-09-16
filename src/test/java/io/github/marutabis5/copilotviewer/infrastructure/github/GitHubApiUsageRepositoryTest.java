@@ -185,7 +185,7 @@ class GitHubApiUsageRepositoryTest {
     void findOrgCreditPoolUsage_maps_matching_organization_ai_credit_budget() {
         when(billingClient.getAiCreditUsage("org", 2026, 9, null))
                 .thenReturn(buildResponse(12, 6.0));
-        when(billingClient.getBudgets("org", "organization", 100))
+        when(billingClient.getBudgets("org", "organization", 100, 1))
                 .thenReturn(buildBudgetsResponse(matchingBudget(10, true), repositoryBudget()));
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
@@ -199,7 +199,7 @@ class GitHubApiUsageRepositoryTest {
     void findOrgCreditPoolUsage_leaves_budget_unset_when_no_matching_org_ai_credit_budget_exists() {
         when(billingClient.getAiCreditUsage("org", 2026, 9, null))
                 .thenReturn(buildResponse(12, 6.0));
-        when(billingClient.getBudgets("org", "organization", 100))
+        when(billingClient.getBudgets("org", "organization", 100, 1))
                 .thenReturn(buildBudgetsResponse(repositoryBudget()));
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
@@ -207,6 +207,23 @@ class GitHubApiUsageRepositoryTest {
         assertThat(result.isAdditionalCreditBudgetSet()).isFalse();
         assertThat(result.getAdditionalCreditBudget()).isNull();
         assertThat(result.isCreditBudgetOverageVisible()).isFalse();
+    }
+
+    @Test
+    void findOrgCreditPoolUsage_follows_budget_pagination_until_match_is_found() {
+        when(billingClient.getAiCreditUsage("org", 2026, 9, null))
+                .thenReturn(buildResponse(12, 6.0));
+        when(billingClient.getBudgets("org", "organization", 100, 1))
+                .thenReturn(buildBudgetsResponse(true, repositoryBudget()));
+        when(billingClient.getBudgets("org", "organization", 100, 2))
+                .thenReturn(buildBudgetsResponse(false, matchingBudget(15, false)));
+
+        var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
+
+        assertThat(result.getAdditionalCreditBudget()).isEqualByComparingTo("15.0");
+        assertThat(result.isPreventFurtherUsage()).isFalse();
+        verify(billingClient).getBudgets("org", "organization", 100, 1);
+        verify(billingClient).getBudgets("org", "organization", 100, 2);
     }
 
     // =========================================================================
@@ -273,8 +290,13 @@ class GitHubApiUsageRepositoryTest {
     }
 
     private static BudgetsResponse buildBudgetsResponse(BudgetDto... budgets) {
+        return buildBudgetsResponse(false, budgets);
+    }
+
+    private static BudgetsResponse buildBudgetsResponse(boolean hasNextPage, BudgetDto... budgets) {
         BudgetsResponse response = new BudgetsResponse();
         response.setBudgets(List.of(budgets));
+        response.setHasNextPage(hasNextPage);
         return response;
     }
 

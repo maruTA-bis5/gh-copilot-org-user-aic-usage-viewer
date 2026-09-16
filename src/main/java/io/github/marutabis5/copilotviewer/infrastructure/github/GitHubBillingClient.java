@@ -100,6 +100,7 @@ public interface GitHubBillingClient extends AutoCloseable {
     BudgetsResponse getBudgets(
             @PathParam("org") String org,
             @QueryParam("scope") String scope,
-            @QueryParam("per_page") int perPage
+            @QueryParam("per_page") int perPage,
+            @QueryParam("page") int page
     );
 }
