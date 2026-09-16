@@ -29,7 +29,7 @@ class OrgCreditPoolOverviewTest {
         assertThat(overview.getRemainingAdditionalCredits()).isEqualByComparingTo("2");
         assertThat(overview.getCreditBudgetOverage()).isEqualByComparingTo("0");
         assertThat(overview.getAdditionalBudgetUsageRatePercent()).isEqualByComparingTo("80");
-        assertThat(overview.isCreditBudgetOverageVisible()).isFalse();
+        assertThat(overview.isCreditBudgetOverageVisible()).isTrue();
     }
 
     @Test
@@ -73,5 +73,23 @@ class OrgCreditPoolOverviewTest {
         assertThat(overview.getCreditBudgetOverage()).isEqualByComparingTo("4");
         assertThat(overview.getAdditionalBudgetUsageRatePercent()).isEqualByComparingTo("100");
         assertThat(overview.isCreditBudgetOverageVisible()).isTrue();
+    }
+
+    @Test
+    void hides_budget_overage_when_further_usage_is_prevented() {
+        OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
+                "org",
+                YearMonth.of(2026, 9),
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(20),
+                BigDecimal.valueOf(14),
+                BigDecimal.valueOf(4),
+                BigDecimal.valueOf(100),
+                BigDecimal.valueOf(10),
+                true,
+                Instant.EPOCH);
+
+        assertThat(overview.getCreditBudgetOverage()).isEqualByComparingTo("4");
+        assertThat(overview.isCreditBudgetOverageVisible()).isFalse();
     }
 }

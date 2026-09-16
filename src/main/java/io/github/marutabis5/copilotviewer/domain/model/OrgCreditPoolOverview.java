@@ -149,14 +149,13 @@ public final class OrgCreditPoolOverview implements Serializable {
     public boolean isAdditionalBudgetSet() { return additionalBudgetCredits != null; }
 
     /**
-     * Returns whether a positive overage should be displayed.
+     * Returns whether the credit budget overage section should be displayed.
      *
      * <p>Overage is hidden when no additional budget is set or further usage is prevented.</p>
      */
     public boolean isCreditBudgetOverageVisible() {
         return isAdditionalBudgetSet()
-                && !preventFurtherUsage
-                && creditBudgetOverage.compareTo(BigDecimal.ZERO) > 0;
+                && !preventFurtherUsage;
     }
     public Instant getFetchedAt() { return fetchedAt; }
 
