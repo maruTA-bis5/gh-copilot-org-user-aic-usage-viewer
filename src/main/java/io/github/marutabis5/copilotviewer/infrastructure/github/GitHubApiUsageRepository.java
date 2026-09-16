@@ -214,7 +214,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
            retryOn = WebApplicationException.class, jitter = 0)
     BudgetsResponse fetchBudgetsWithRetry(String org, int page) {
         return executeWithRetryHandling(
-                () -> billingClient.getBudgets(org, ORGANIZATION_SCOPE, 100, page),
+                () -> billingClient.getBudgets(org, 100, page),
                 "budgets %s page %d".formatted(org, page));
     }
 

@@ -92,7 +92,6 @@ public interface GitHubBillingClient extends AutoCloseable {
      * Fetches one page of budgets for an organization.
      *
      * @param org organization name
-     * @param scope budget scope used to filter the response
      * @param perPage maximum number of budgets requested per page
      * @param page one-based page number
      * @return the parsed budgets page
@@ -102,7 +101,6 @@ public interface GitHubBillingClient extends AutoCloseable {
     @Produces(MediaType.APPLICATION_JSON)
     BudgetsResponse getBudgets(
             @PathParam("org") String org,
-            @QueryParam("scope") String scope,
             @QueryParam("per_page") int perPage,
             @QueryParam("page") int page
     );
