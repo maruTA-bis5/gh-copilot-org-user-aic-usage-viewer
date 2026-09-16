@@ -191,7 +191,9 @@ class GitHubApiUsageRepositoryTest {
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
         assertThat(result.getTotalNetQuantity()).isEqualByComparingTo("12.0");
-        assertThat(result.getAdditionalBudgetAmount()).isEqualByComparingTo("10.0");
+        assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1000.0");
+        assertThat(result.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("12.0");
+        assertThat(result.getRemainingAdditionalCredits()).isEqualByComparingTo("988.0");
         assertThat(result.isPreventFurtherUsage()).isTrue();
     }
 
@@ -205,8 +207,8 @@ class GitHubApiUsageRepositoryTest {
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
         assertThat(result.isAdditionalBudgetSet()).isFalse();
-        assertThat(result.getAdditionalBudgetAmount()).isNull();
-        assertThat(result.isAdditionalBudgetOverageVisible()).isFalse();
+        assertThat(result.getAdditionalBudgetCredits()).isNull();
+        assertThat(result.isCreditBudgetOverageVisible()).isFalse();
     }
 
     @Test
@@ -220,7 +222,7 @@ class GitHubApiUsageRepositoryTest {
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
-        assertThat(result.getAdditionalBudgetAmount()).isEqualByComparingTo("15.0");
+        assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1500.0");
         assertThat(result.isPreventFurtherUsage()).isFalse();
         verify(billingClient).getBudgets("org", 100, 1);
         verify(billingClient).getBudgets("org", 100, 2);
@@ -300,12 +302,12 @@ class GitHubApiUsageRepositoryTest {
         return response;
     }
 
-    private static BudgetDto matchingBudget(double amount, boolean preventFurtherUsage) {
+    private static BudgetDto matchingBudget(double budgetUsd, boolean preventFurtherUsage) {
         BudgetDto budget = new BudgetDto();
         budget.setBudgetScope("organization");
         budget.setBudgetType("BundlePricing");
         budget.setBudgetProductSku("ai_credits");
-        budget.setBudgetAmount(amount);
+        budget.setBudgetAmount(budgetUsd);
         budget.setPreventFurtherUsage(preventFurtherUsage);
         return budget;
     }

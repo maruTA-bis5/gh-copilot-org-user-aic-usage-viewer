@@ -45,6 +45,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
     private static final String ORGANIZATION_SCOPE = "organization";
     private static final String BUNDLE_PRICING = "BundlePricing";
     private static final String AI_CREDITS = "ai_credits";
+    private static final BigDecimal AI_CREDITS_PER_USD = BigDecimal.valueOf(100);
 
     /** Statuses that warrant a retry (delegated to {@link Retry} via rethrowing). */
     private static boolean isRetryable(int status) {
@@ -131,7 +132,9 @@ public class GitHubApiUsageRepository implements UsageRepository {
         return new OrgCreditPoolOverview(org, yearMonth,
                 totalGross, totalDiscount, totalNet, totalAmount,
                 BigDecimal.ZERO, // poolCapacity must be set by the caller via PoolCapacityCalculator
-                orgBudget.map(BudgetDto::getBudgetAmount).map(BigDecimal::valueOf).orElse(null),
+                orgBudget.map(BudgetDto::getBudgetAmount)
+                        .map(GitHubApiUsageRepository::toAiCreditAmount)
+                        .orElse(null),
                 orgBudget.map(BudgetDto::isPreventFurtherUsage).orElse(false),
                 Instant.now());
     }
@@ -270,6 +273,16 @@ public class GitHubApiUsageRepository implements UsageRepository {
             }
             page++;
         }
+    }
+
+    /**
+     * Converts the budget API's USD amount to AI credits.
+     *
+     * <p>The organization budget endpoint reports {@code budget_amount} in USD,
+     * while the usage endpoint reports quantities in AI credits.</p>
+     */
+    private static BigDecimal toAiCreditAmount(Double budgetAmountUsd) {
+        return BigDecimal.valueOf(budgetAmountUsd).multiply(AI_CREDITS_PER_USD);
     }
 
     /**

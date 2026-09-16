@@ -115,37 +115,37 @@
                                        rendered="#{orgCreditPoolBean.capacityAvailable}"
                                        style="margin-bottom:1rem;" />
 
-                        <h3>Additional Budget Summary</h3>
+                        <h3>Additional Credit Budget Summary</h3>
                         <div class="summary-grid">
                             <div class="summary-card">
                                 <div class="value">
                                     <ui:fragment rendered="#{orgCreditPoolBean.creditPool.additionalBudgetSet}">
-                                        <h:outputText value="#{orgCreditPoolBean.creditPool.additionalBudgetAmount}">
-                                            <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                        <h:outputText value="#{orgCreditPoolBean.creditPool.additionalBudgetCredits}">
+                                            <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
                                         </h:outputText>
                                     </ui:fragment>
                                     <ui:fragment rendered="#{not orgCreditPoolBean.creditPool.additionalBudgetSet}">
                                         Not set
                                     </ui:fragment>
                                 </div>
-                                <div class="label">Additional Budget Amount</div>
+                                <div class="label">Additional Credit Budget (AI credits)</div>
                             </div>
                             <ui:fragment rendered="#{orgCreditPoolBean.creditPool.additionalBudgetSet}">
                                 <div class="summary-card">
                                     <div class="value">
-                                        <h:outputText value="#{orgCreditPoolBean.creditPool.additionalBudgetUsedAmount}">
-                                            <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                        <h:outputText value="#{orgCreditPoolBean.creditPool.additionalCreditsUsedWithinBudget}">
+                                            <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
                                         </h:outputText>
                                     </div>
-                                    <div class="label">Additional Budget Used</div>
+                                    <div class="label">Additional Credits Used Within Budget</div>
                                 </div>
                                 <div class="summary-card">
                                     <div class="value">
-                                        <h:outputText value="#{orgCreditPoolBean.creditPool.remainingAdditionalBudgetAmount}">
-                                            <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                        <h:outputText value="#{orgCreditPoolBean.creditPool.remainingAdditionalCredits}">
+                                            <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
                                         </h:outputText>
                                     </div>
-                                    <div class="label">Remaining Additional Budget</div>
+                                    <div class="label">Remaining Additional Credits</div>
                                 </div>
                             </ui:fragment>
                         </div>
@@ -154,16 +154,16 @@
                                        rendered="#{orgCreditPoolBean.creditPool.additionalBudgetSet}"
                                        style="margin-bottom:1rem;" />
 
-                        <ui:fragment rendered="#{orgCreditPoolBean.creditPool.additionalBudgetOverageVisible}">
-                            <h3>Budget Overage</h3>
+                        <ui:fragment rendered="#{orgCreditPoolBean.creditPool.creditBudgetOverageVisible}">
+                            <h3>Credit Budget Overage</h3>
                             <div class="summary-grid">
                                 <div class="summary-card">
                                     <div class="value">
-                                        <h:outputText value="#{orgCreditPoolBean.creditPool.additionalBudgetOverageAmount}">
-                                            <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                        <h:outputText value="#{orgCreditPoolBean.creditPool.creditBudgetOverage}">
+                                            <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
                                         </h:outputText>
                                     </div>
-                                    <div class="label">Budget Overage Amount</div>
+                                    <div class="label">Overage Credits Used</div>
                                 </div>
                             </div>
                         </ui:fragment>

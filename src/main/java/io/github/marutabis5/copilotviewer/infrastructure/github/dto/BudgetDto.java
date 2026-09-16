@@ -4,6 +4,9 @@ import jakarta.json.bind.annotation.JsonbProperty;
 
 /**
  * Budget summary from {@code GET /organizations/{org}/settings/billing/budgets}.
+ *
+ * <p>{@code budget_amount} is returned by GitHub in USD and is converted to
+ * AI credits at the repository boundary before domain calculations.</p>
  */
 public class BudgetDto {
 
