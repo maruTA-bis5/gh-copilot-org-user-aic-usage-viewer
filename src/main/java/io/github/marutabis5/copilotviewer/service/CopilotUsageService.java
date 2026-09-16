@@ -78,8 +78,8 @@ public class CopilotUsageService {
     }
 
     /**
-     * Fetches org-wide AI credit pool usage, billing info, and computes pool capacity
-     * for the requested month.
+     * Fetches organization-wide AI credit usage, budget settings, and billing information,
+     * then computes pool capacity for the requested month.
      *
      * @param yearMonth target year-month
      * @return non-null {@link OrgCreditPoolOverview}
@@ -117,6 +117,8 @@ public class CopilotUsageService {
                 rawOverview.getTotalNetQuantity(),
                 rawOverview.getTotalNetAmount(),
                 poolCapacity,
+                rawOverview.getAdditionalBudgetCredits(),
+                rawOverview.isPreventFurtherUsage(),
                 rawOverview.getFetchedAt());
 
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;

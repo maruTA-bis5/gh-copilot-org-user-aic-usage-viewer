@@ -7,6 +7,8 @@ import io.github.marutabis5.copilotviewer.domain.model.OrgCreditPoolOverview;
 import io.github.marutabis5.copilotviewer.domain.model.UsageItem;
 import io.github.marutabis5.copilotviewer.domain.repository.UsageRepository;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsageResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetDto;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetsResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
@@ -40,6 +42,10 @@ import java.util.function.Supplier;
 public class GitHubApiUsageRepository implements UsageRepository {
 
     private static final Logger LOG = Logger.getLogger(GitHubApiUsageRepository.class);
+    private static final String ORGANIZATION_SCOPE = "organization";
+    private static final String BUNDLE_PRICING = "BundlePricing";
+    private static final String AI_CREDITS = "ai_credits";
+    private static final BigDecimal AI_CREDITS_PER_USD = BigDecimal.valueOf(100);
 
     /** Statuses that warrant a retry (delegated to {@link Retry} via rethrowing). */
     private static boolean isRetryable(int status) {
@@ -100,6 +106,17 @@ public class GitHubApiUsageRepository implements UsageRepository {
             throw new GitHubApiException(status, summary, ex);
         }
 
+        Optional<BudgetDto> orgBudget;
+        try {
+            orgBudget = findOrganizationAiCreditsBudget(org);
+        } catch (WebApplicationException ex) {
+            int status = ex.getResponse().getStatus();
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API failed for org budgets %s after retries. HTTP %d: %s",
+                    org, status, summary);
+            throw new GitHubApiException(status, summary, ex);
+        }
+
         BigDecimal totalGross    = BigDecimal.ZERO;
         BigDecimal totalDiscount = BigDecimal.ZERO;
         BigDecimal totalNet      = BigDecimal.ZERO;
@@ -115,6 +132,10 @@ public class GitHubApiUsageRepository implements UsageRepository {
         return new OrgCreditPoolOverview(org, yearMonth,
                 totalGross, totalDiscount, totalNet, totalAmount,
                 BigDecimal.ZERO, // poolCapacity must be set by the caller via PoolCapacityCalculator
+                orgBudget.map(BudgetDto::getBudgetAmount)
+                        .map(GitHubApiUsageRepository::toAiCreditAmount)
+                        .orElse(null),
+                orgBudget.map(BudgetDto::isPreventFurtherUsage).orElse(false),
                 Instant.now());
     }
 
@@ -192,6 +213,14 @@ public class GitHubApiUsageRepository implements UsageRepository {
                 "copilot billing %s".formatted(org));
     }
 
+    @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
+           retryOn = WebApplicationException.class, jitter = 0)
+    BudgetsResponse fetchBudgetsWithRetry(String org, int page) {
+        return executeWithRetryHandling(
+                () -> billingClient.getBudgets(org, 100, page),
+                "budgets %s page %d".formatted(org, page));
+    }
+
     private <T> T executeWithRetryHandling(Supplier<T> action, String context) {
         try {
             return action.get();
@@ -222,6 +251,38 @@ public class GitHubApiUsageRepository implements UsageRepository {
                         dto.getNetQuantity(),
                         dto.getNetAmount()))
                 .toList();
+    }
+
+    /**
+     * Finds the first organization-wide AI credits budget, scanning subsequent pages as needed.
+     *
+     * @param org organization whose budgets are searched
+     * @return the matching budget, or an empty optional after the final page
+     */
+    private Optional<BudgetDto> findOrganizationAiCreditsBudget(String org) {
+        int page = 1;
+        while (true) {
+            BudgetsResponse response = self.fetchBudgetsWithRetry(org, page);
+            Optional<BudgetDto> budget = response.getBudgets().stream()
+                    .filter(dto -> ORGANIZATION_SCOPE.equalsIgnoreCase(dto.getBudgetScope()))
+                    .filter(dto -> BUNDLE_PRICING.equalsIgnoreCase(dto.getBudgetType()))
+                    .filter(dto -> AI_CREDITS.equalsIgnoreCase(dto.getBudgetProductSku()))
+                    .findFirst();
+            if (budget.isPresent() || !response.isHasNextPage()) {
+                return budget;
+            }
+            page++;
+        }
+    }
+
+    /**
+     * Converts the budget API's USD amount to AI credits.
+     *
+     * <p>The organization budget endpoint reports {@code budget_amount} in USD,
+     * while the usage endpoint reports quantities in AI credits.</p>
+     */
+    private static BigDecimal toAiCreditAmount(Double budgetAmountUsd) {
+        return BigDecimal.valueOf(budgetAmountUsd).multiply(AI_CREDITS_PER_USD);
     }
 
     /**

@@ -1,6 +1,7 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github;
 
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsageResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetsResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam;
@@ -86,4 +87,21 @@ public interface GitHubBillingClient extends AutoCloseable {
     @Path("/orgs/{org}/copilot/billing")
     @Produces(MediaType.APPLICATION_JSON)
     CopilotBillingResponse getCopilotBilling(@PathParam("org") String org);
+
+    /**
+     * Fetches one page of budgets for an organization.
+     *
+     * @param org organization name
+     * @param perPage maximum number of budgets requested per page
+     * @param page one-based page number
+     * @return the parsed budgets page
+     */
+    @GET
+    @Path("/organizations/{org}/settings/billing/budgets")
+    @Produces(MediaType.APPLICATION_JSON)
+    BudgetsResponse getBudgets(
+            @PathParam("org") String org,
+            @QueryParam("per_page") int perPage,
+            @QueryParam("page") int page
+    );
 }

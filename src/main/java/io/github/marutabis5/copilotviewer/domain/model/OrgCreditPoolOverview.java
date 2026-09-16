@@ -27,10 +27,33 @@ public final class OrgCreditPoolOverview implements Serializable {
     private final BigDecimal totalNetQuantity;
     private final BigDecimal totalNetAmount;
     private final BigDecimal totalPoolCapacity;
+    private final BigDecimal additionalBudgetCredits;
+    private final boolean preventFurtherUsage;
     private final BigDecimal remainingPool;
     private final BigDecimal usageRatePercent;
+    private final BigDecimal additionalCreditsUsedWithinBudget;
+    private final BigDecimal additionalBudgetUsageRatePercent;
+    private final BigDecimal remainingAdditionalCredits;
+    private final BigDecimal creditBudgetOverage;
     private final Instant fetchedAt;
 
+    /**
+     * Creates an overview and derives its included-pool and additional-budget metrics.
+     *
+     * @param org organization name
+     * @param yearMonth month covered by the overview
+     * @param totalGrossQuantity total gross credit quantity
+     * @param totalDiscountQuantity total included credit quantity
+     * @param totalNetQuantity total additional credit quantity
+     * @param totalNetAmount total cost of additional credits
+     * @param totalPoolCapacity included credit capacity
+     * @param additionalBudgetCredits configured additional-credit budget in AI credits,
+     *                                or {@code null} if unset
+     * @param preventFurtherUsage whether usage stops when the additional budget is exhausted
+     * @param fetchedAt time at which the source data was fetched
+     * @throws NullPointerException if any reference argument except
+     *         {@code additionalBudgetCredits} is {@code null}
+     */
     public OrgCreditPoolOverview(String org,
                                  YearMonth yearMonth,
                                  BigDecimal totalGrossQuantity,
@@ -38,6 +61,8 @@ public final class OrgCreditPoolOverview implements Serializable {
                                  BigDecimal totalNetQuantity,
                                  BigDecimal totalNetAmount,
                                  BigDecimal totalPoolCapacity,
+                                 BigDecimal additionalBudgetCredits,
+                                 boolean preventFurtherUsage,
                                  Instant fetchedAt) {
         this.org = Objects.requireNonNull(org, "org must not be null");
         this.yearMonth = Objects.requireNonNull(yearMonth, "yearMonth must not be null");
@@ -46,6 +71,8 @@ public final class OrgCreditPoolOverview implements Serializable {
         this.totalNetQuantity = Objects.requireNonNull(totalNetQuantity, "totalNetQuantity must not be null");
         this.totalNetAmount = Objects.requireNonNull(totalNetAmount, "totalNetAmount must not be null");
         this.totalPoolCapacity = Objects.requireNonNull(totalPoolCapacity, "totalPoolCapacity must not be null");
+        this.additionalBudgetCredits = additionalBudgetCredits;
+        this.preventFurtherUsage = preventFurtherUsage;
         this.fetchedAt = Objects.requireNonNull(fetchedAt, "fetchedAt must not be null");
 
         this.remainingPool = totalPoolCapacity.subtract(totalDiscountQuantity);
@@ -54,6 +81,34 @@ public final class OrgCreditPoolOverview implements Serializable {
                 : totalDiscountQuantity
                         .multiply(new BigDecimal("100"))
                         .divide(totalPoolCapacity, 4, RoundingMode.HALF_UP);
+        this.additionalCreditsUsedWithinBudget = additionalBudgetCredits == null
+                ? BigDecimal.ZERO
+                : totalNetQuantity.min(additionalBudgetCredits);
+        this.additionalBudgetUsageRatePercent = additionalBudgetCredits == null
+                || additionalBudgetCredits.compareTo(BigDecimal.ZERO) == 0
+                ? BigDecimal.ZERO
+                : additionalCreditsUsedWithinBudget
+                        .multiply(new BigDecimal("100"))
+                        .divide(additionalBudgetCredits, 4, RoundingMode.HALF_UP);
+        this.remainingAdditionalCredits = additionalBudgetCredits == null
+                ? BigDecimal.ZERO
+                : additionalBudgetCredits.subtract(additionalCreditsUsedWithinBudget);
+        this.creditBudgetOverage = additionalBudgetCredits == null
+                ? BigDecimal.ZERO
+                : totalNetQuantity.subtract(additionalBudgetCredits).max(BigDecimal.ZERO);
+    }
+
+    /** Creates an overview with no additional-credit budget configured. */
+    public OrgCreditPoolOverview(String org,
+                                 YearMonth yearMonth,
+                                 BigDecimal totalGrossQuantity,
+                                 BigDecimal totalDiscountQuantity,
+                                 BigDecimal totalNetQuantity,
+                                 BigDecimal totalNetAmount,
+                                 BigDecimal totalPoolCapacity,
+                                 Instant fetchedAt) {
+        this(org, yearMonth, totalGrossQuantity, totalDiscountQuantity, totalNetQuantity,
+                totalNetAmount, totalPoolCapacity, null, false, fetchedAt);
     }
 
     public String getOrg() { return org; }
@@ -63,8 +118,45 @@ public final class OrgCreditPoolOverview implements Serializable {
     public BigDecimal getTotalNetQuantity() { return totalNetQuantity; }
     public BigDecimal getTotalNetAmount() { return totalNetAmount; }
     public BigDecimal getTotalPoolCapacity() { return totalPoolCapacity; }
+
+    /** Returns the configured additional-credit budget in AI credits, or {@code null} if none is set. */
+    public BigDecimal getAdditionalBudgetCredits() { return additionalBudgetCredits; }
+
+    /** Returns whether additional usage is blocked after the configured budget is exhausted. */
+    public boolean isPreventFurtherUsage() { return preventFurtherUsage; }
     public BigDecimal getRemainingPool() { return remainingPool; }
     public BigDecimal getUsageRatePercent() { return usageRatePercent; }
+
+    /**
+     * Returns the lesser of the total net credit quantity and configured additional
+     * credit budget, or zero if no budget is set.
+     */
+    public BigDecimal getAdditionalCreditsUsedWithinBudget() { return additionalCreditsUsedWithinBudget; }
+
+    /**
+     * Returns the used additional budget as a percentage rounded to four decimal places,
+     * or zero if the budget is unset or zero.
+     */
+    public BigDecimal getAdditionalBudgetUsageRatePercent() { return additionalBudgetUsageRatePercent; }
+
+    /** Returns the remaining additional credits, or zero if no budget is set. */
+    public BigDecimal getRemainingAdditionalCredits() { return remainingAdditionalCredits; }
+
+    /** Returns the positive additional-credit quantity above the budget, or zero if no budget is set. */
+    public BigDecimal getCreditBudgetOverage() { return creditBudgetOverage; }
+
+    /** Returns whether an additional-credit budget is configured. */
+    public boolean isAdditionalBudgetSet() { return additionalBudgetCredits != null; }
+
+    /**
+     * Returns whether the credit budget overage section should be displayed.
+     *
+     * <p>Overage is hidden when no additional budget is set or further usage is prevented.</p>
+     */
+    public boolean isCreditBudgetOverageVisible() {
+        return isAdditionalBudgetSet()
+                && !preventFurtherUsage;
+    }
     public Instant getFetchedAt() { return fetchedAt; }
 
     @Override
@@ -77,20 +169,25 @@ public final class OrgCreditPoolOverview implements Serializable {
                 && Objects.equals(totalDiscountQuantity, that.totalDiscountQuantity)
                 && Objects.equals(totalNetQuantity, that.totalNetQuantity)
                 && Objects.equals(totalNetAmount, that.totalNetAmount)
-                && Objects.equals(totalPoolCapacity, that.totalPoolCapacity);
+                && Objects.equals(totalPoolCapacity, that.totalPoolCapacity)
+                && Objects.equals(additionalBudgetCredits, that.additionalBudgetCredits)
+                && preventFurtherUsage == that.preventFurtherUsage;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(org, yearMonth, totalGrossQuantity, totalDiscountQuantity,
-                totalNetQuantity, totalNetAmount, totalPoolCapacity);
+                totalNetQuantity, totalNetAmount, totalPoolCapacity,
+                additionalBudgetCredits, preventFurtherUsage);
     }
 
     @Override
     public String toString() {
         return "OrgCreditPoolOverview{org='%s', yearMonth=%s, totalDiscountQuantity=%s, "
-                + "totalPoolCapacity=%s, remainingPool=%s, usageRatePercent=%s%%}"
+                + "totalNetQuantity=%s, totalPoolCapacity=%s, additionalBudgetCredits=%s, "
+                + "remainingPool=%s, usageRatePercent=%s%%}"
                 .formatted(org, yearMonth, totalDiscountQuantity,
-                        totalPoolCapacity, remainingPool, usageRatePercent);
+                        totalNetQuantity, totalPoolCapacity, additionalBudgetCredits,
+                        remainingPool, usageRatePercent);
     }
 }

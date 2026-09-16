@@ -1,6 +1,8 @@
 package io.github.marutabis5.copilotviewer.infrastructure.github;
 
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsageResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetDto;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetsResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.SeatBreakdownDto;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
@@ -17,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.YearMonth;
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -178,6 +181,53 @@ class GitHubApiUsageRepositoryTest {
         assertThat(report.getDailyUsages().get(0).getDate().getDayOfMonth()).isEqualTo(14);
     }
 
+    @Test
+    void findOrgCreditPoolUsage_maps_matching_organization_ai_credit_budget() {
+        when(billingClient.getAiCreditUsage("org", 2026, 9, null))
+                .thenReturn(buildResponse(12, 6.0));
+        when(billingClient.getBudgets("org", 100, 1))
+                .thenReturn(buildBudgetsResponse(matchingBudget(10, true), repositoryBudget()));
+
+        var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
+
+        assertThat(result.getTotalNetQuantity()).isEqualByComparingTo("12.0");
+        assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1000.0");
+        assertThat(result.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("12.0");
+        assertThat(result.getRemainingAdditionalCredits()).isEqualByComparingTo("988.0");
+        assertThat(result.isPreventFurtherUsage()).isTrue();
+    }
+
+    @Test
+    void findOrgCreditPoolUsage_leaves_budget_unset_when_no_matching_org_ai_credit_budget_exists() {
+        when(billingClient.getAiCreditUsage("org", 2026, 9, null))
+                .thenReturn(buildResponse(12, 6.0));
+        when(billingClient.getBudgets("org", 100, 1))
+                .thenReturn(buildBudgetsResponse(repositoryBudget()));
+
+        var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
+
+        assertThat(result.isAdditionalBudgetSet()).isFalse();
+        assertThat(result.getAdditionalBudgetCredits()).isNull();
+        assertThat(result.isCreditBudgetOverageVisible()).isFalse();
+    }
+
+    @Test
+    void findOrgCreditPoolUsage_follows_budget_pagination_until_match_is_found() {
+        when(billingClient.getAiCreditUsage("org", 2026, 9, null))
+                .thenReturn(buildResponse(12, 6.0));
+        when(billingClient.getBudgets("org", 100, 1))
+                .thenReturn(buildBudgetsResponse(true, repositoryBudget()));
+        when(billingClient.getBudgets("org", 100, 2))
+                .thenReturn(buildBudgetsResponse(false, matchingBudget(15, false)));
+
+        var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
+
+        assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1500.0");
+        assertThat(result.isPreventFurtherUsage()).isFalse();
+        verify(billingClient).getBudgets("org", 100, 1);
+        verify(billingClient).getBudgets("org", 100, 2);
+    }
+
     // =========================================================================
     // findCopilotBillingInfo
     // =========================================================================
@@ -232,12 +282,43 @@ class GitHubApiUsageRepositoryTest {
         dto.setModel("gpt-4o");
         dto.setUnitType("credits");
         dto.setGrossQuantity(qty);
+        dto.setDiscountQuantity(qty);
         dto.setNetQuantity(qty);
         dto.setNetAmount(amount);
 
         AiCreditUsageResponse resp = new AiCreditUsageResponse();
         resp.setUsageItems(List.of(dto));
         return resp;
+    }
+
+    private static BudgetsResponse buildBudgetsResponse(BudgetDto... budgets) {
+        return buildBudgetsResponse(false, budgets);
+    }
+
+    private static BudgetsResponse buildBudgetsResponse(boolean hasNextPage, BudgetDto... budgets) {
+        BudgetsResponse response = new BudgetsResponse();
+        response.setBudgets(List.of(budgets));
+        response.setHasNextPage(hasNextPage);
+        return response;
+    }
+
+    private static BudgetDto matchingBudget(double budgetUsd, boolean preventFurtherUsage) {
+        BudgetDto budget = new BudgetDto();
+        budget.setBudgetScope("organization");
+        budget.setBudgetType("BundlePricing");
+        budget.setBudgetProductSku("ai_credits");
+        budget.setBudgetAmount(budgetUsd);
+        budget.setPreventFurtherUsage(preventFurtherUsage);
+        return budget;
+    }
+
+    private static BudgetDto repositoryBudget() {
+        BudgetDto budget = new BudgetDto();
+        budget.setBudgetScope("repository");
+        budget.setBudgetType("BundlePricing");
+        budget.setBudgetProductSku("ai_credits");
+        budget.setBudgetAmount(99.0);
+        return budget;
     }
 
     /**

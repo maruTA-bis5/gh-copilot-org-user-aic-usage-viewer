@@ -90,6 +90,14 @@ webapp/
 GitHub API version: **2026-03-10**  
 Required permission: **Organization administration: read**
 
+`GET /organizations/{org}/settings/billing/budgets`  
+GitHub API version: **2026-03-10**  
+Required permission: **Organization administration: read**
+
+The budgets API returns `budget_amount` in USD. The organization credit pool
+converts it at **1 USD = 100 AI credits** before calculating or displaying
+additional-budget usage.
+
 ## License
 
 [MIT](LICENSE) © 2026 Takayuki Maruyama
