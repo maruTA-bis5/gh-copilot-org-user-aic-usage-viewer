@@ -280,7 +280,7 @@ class GitHubApiUsageRepositoryTest {
         dto.setModel("gpt-4o");
         dto.setUnitType("credits");
         dto.setGrossQuantity(qty);
-        dto.setDiscountQuantity(qty / 2);
+        dto.setDiscountQuantity(qty);
         dto.setNetQuantity(qty);
         dto.setNetAmount(amount);
 
