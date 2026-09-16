@@ -15,12 +15,12 @@ class OrgCreditPoolOverviewTest {
         OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
                 "org",
                 YearMonth.of(2026, 9),
-                new BigDecimal("30"),
-                new BigDecimal("20"),
-                new BigDecimal("12"),
-                new BigDecimal("6"),
-                new BigDecimal("100"),
-                new BigDecimal("10"),
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(20),
+                BigDecimal.valueOf(12),
+                BigDecimal.valueOf(6),
+                BigDecimal.valueOf(100),
+                BigDecimal.valueOf(10),
                 false,
                 Instant.EPOCH);
 
@@ -37,11 +37,11 @@ class OrgCreditPoolOverviewTest {
         OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
                 "org",
                 YearMonth.of(2026, 9),
-                new BigDecimal("30"),
-                new BigDecimal("20"),
-                new BigDecimal("12"),
-                new BigDecimal("6"),
-                new BigDecimal("100"),
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(20),
+                BigDecimal.valueOf(12),
+                BigDecimal.valueOf(6),
+                BigDecimal.valueOf(100),
                 null,
                 false,
                 Instant.EPOCH);
@@ -59,12 +59,12 @@ class OrgCreditPoolOverviewTest {
         OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
                 "org",
                 YearMonth.of(2026, 9),
-                new BigDecimal("30"),
-                new BigDecimal("20"),
-                new BigDecimal("8"),
-                new BigDecimal("6"),
-                new BigDecimal("100"),
-                new BigDecimal("10"),
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(20),
+                BigDecimal.valueOf(8),
+                BigDecimal.valueOf(6),
+                BigDecimal.valueOf(100),
+                BigDecimal.valueOf(10),
                 false,
                 Instant.EPOCH);
 
