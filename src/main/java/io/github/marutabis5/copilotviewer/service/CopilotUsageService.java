@@ -117,7 +117,7 @@ public class CopilotUsageService {
                 rawOverview.getTotalNetQuantity(),
                 rawOverview.getTotalNetAmount(),
                 poolCapacity,
-                rawOverview.getAdditionalCreditBudget(),
+                rawOverview.getAdditionalBudgetAmount(),
                 rawOverview.isPreventFurtherUsage(),
                 rawOverview.getFetchedAt());
 

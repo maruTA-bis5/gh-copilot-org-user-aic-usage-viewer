@@ -191,7 +191,7 @@ class GitHubApiUsageRepositoryTest {
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
         assertThat(result.getTotalNetQuantity()).isEqualByComparingTo("12.0");
-        assertThat(result.getAdditionalCreditBudget()).isEqualByComparingTo("10.0");
+        assertThat(result.getAdditionalBudgetAmount()).isEqualByComparingTo("10.0");
         assertThat(result.isPreventFurtherUsage()).isTrue();
     }
 
@@ -204,9 +204,9 @@ class GitHubApiUsageRepositoryTest {
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
-        assertThat(result.isAdditionalCreditBudgetSet()).isFalse();
-        assertThat(result.getAdditionalCreditBudget()).isNull();
-        assertThat(result.isCreditBudgetOverageVisible()).isFalse();
+        assertThat(result.isAdditionalBudgetSet()).isFalse();
+        assertThat(result.getAdditionalBudgetAmount()).isNull();
+        assertThat(result.isAdditionalBudgetOverageVisible()).isFalse();
     }
 
     @Test
@@ -220,7 +220,7 @@ class GitHubApiUsageRepositoryTest {
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
-        assertThat(result.getAdditionalCreditBudget()).isEqualByComparingTo("15.0");
+        assertThat(result.getAdditionalBudgetAmount()).isEqualByComparingTo("15.0");
         assertThat(result.isPreventFurtherUsage()).isFalse();
         verify(billingClient).getBudgets("org", "organization", 100, 1);
         verify(billingClient).getBudgets("org", "organization", 100, 2);

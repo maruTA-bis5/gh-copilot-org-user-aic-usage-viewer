@@ -153,11 +153,11 @@ class CopilotUsageServiceTest {
         OrgCreditPoolOverview result = service.getOrgCreditPoolOverview(ym);
 
         assertThat(result.getTotalPoolCapacity()).isEqualByComparingTo("3800");
-        assertThat(result.getAdditionalCreditBudget()).isEqualByComparingTo("10");
+        assertThat(result.getAdditionalBudgetAmount()).isEqualByComparingTo("10");
         assertThat(result.isPreventFurtherUsage()).isTrue();
-        assertThat(result.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("10");
-        assertThat(result.getRemainingAdditionalCredits()).isEqualByComparingTo("0");
-        assertThat(result.getCreditBudgetOverage()).isEqualByComparingTo("2");
+        assertThat(result.getAdditionalBudgetUsedAmount()).isEqualByComparingTo("6");
+        assertThat(result.getRemainingAdditionalBudgetAmount()).isEqualByComparingTo("4");
+        assertThat(result.getAdditionalBudgetOverageAmount()).isEqualByComparingTo("0");
     }
 
     // =========================================================================

@@ -24,12 +24,12 @@ class OrgCreditPoolOverviewTest {
                 false,
                 Instant.EPOCH);
 
-        assertThat(overview.isAdditionalCreditBudgetSet()).isTrue();
-        assertThat(overview.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("10");
-        assertThat(overview.getAdditionalBudgetUsageRatePercent()).isEqualByComparingTo("100");
-        assertThat(overview.getRemainingAdditionalCredits()).isEqualByComparingTo("0");
-        assertThat(overview.getCreditBudgetOverage()).isEqualByComparingTo("2");
-        assertThat(overview.isCreditBudgetOverageVisible()).isTrue();
+        assertThat(overview.isAdditionalBudgetSet()).isTrue();
+        assertThat(overview.getAdditionalBudgetUsedAmount()).isEqualByComparingTo("6");
+        assertThat(overview.getRemainingAdditionalBudgetAmount()).isEqualByComparingTo("4");
+        assertThat(overview.getAdditionalBudgetOverageAmount()).isEqualByComparingTo("0");
+        assertThat(overview.getAdditionalBudgetUsageRatePercent()).isEqualByComparingTo("60");
+        assertThat(overview.isAdditionalBudgetOverageVisible()).isFalse();
     }
 
     @Test
@@ -46,12 +46,12 @@ class OrgCreditPoolOverviewTest {
                 false,
                 Instant.EPOCH);
 
-        assertThat(overview.isAdditionalCreditBudgetSet()).isFalse();
-        assertThat(overview.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("0");
+        assertThat(overview.isAdditionalBudgetSet()).isFalse();
+        assertThat(overview.getAdditionalBudgetUsedAmount()).isEqualByComparingTo("0");
         assertThat(overview.getAdditionalBudgetUsageRatePercent()).isEqualByComparingTo("0");
-        assertThat(overview.getRemainingAdditionalCredits()).isEqualByComparingTo("0");
-        assertThat(overview.getCreditBudgetOverage()).isEqualByComparingTo("0");
-        assertThat(overview.isCreditBudgetOverageVisible()).isFalse();
+        assertThat(overview.getRemainingAdditionalBudgetAmount()).isEqualByComparingTo("0");
+        assertThat(overview.getAdditionalBudgetOverageAmount()).isEqualByComparingTo("0");
+        assertThat(overview.isAdditionalBudgetOverageVisible()).isFalse();
     }
 
     @Test
@@ -62,13 +62,34 @@ class OrgCreditPoolOverviewTest {
                 BigDecimal.valueOf(30),
                 BigDecimal.valueOf(20),
                 BigDecimal.valueOf(8),
-                BigDecimal.valueOf(6),
+                BigDecimal.valueOf(4),
                 BigDecimal.valueOf(100),
                 BigDecimal.valueOf(10),
                 false,
                 Instant.EPOCH);
 
-        assertThat(overview.getCreditBudgetOverage()).isEqualByComparingTo("0");
-        assertThat(overview.isCreditBudgetOverageVisible()).isFalse();
+        assertThat(overview.getAdditionalBudgetOverageAmount()).isEqualByComparingTo("0");
+        assertThat(overview.isAdditionalBudgetOverageVisible()).isFalse();
+    }
+
+    @Test
+    void derives_budget_overage_from_total_net_amount() {
+        OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
+                "org",
+                YearMonth.of(2026, 9),
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(20),
+                BigDecimal.valueOf(8),
+                BigDecimal.valueOf(14),
+                BigDecimal.valueOf(100),
+                BigDecimal.valueOf(10),
+                false,
+                Instant.EPOCH);
+
+        assertThat(overview.getAdditionalBudgetUsedAmount()).isEqualByComparingTo("10");
+        assertThat(overview.getRemainingAdditionalBudgetAmount()).isEqualByComparingTo("0");
+        assertThat(overview.getAdditionalBudgetOverageAmount()).isEqualByComparingTo("4");
+        assertThat(overview.getAdditionalBudgetUsageRatePercent()).isEqualByComparingTo("100");
+        assertThat(overview.isAdditionalBudgetOverageVisible()).isTrue();
     }
 }
