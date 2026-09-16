@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
@@ -140,12 +141,12 @@ class CopilotUsageServiceTest {
                 .thenReturn(new OrgCreditPoolOverview(
                         TEST_ORG,
                         ym,
-                        new java.math.BigDecimal("30"),
-                        new java.math.BigDecimal("20"),
-                        new java.math.BigDecimal("12"),
-                        new java.math.BigDecimal("6"),
-                        java.math.BigDecimal.ZERO,
-                        new java.math.BigDecimal("10"),
+                        BigDecimal.valueOf(30),
+                        BigDecimal.valueOf(20),
+                        BigDecimal.valueOf(12),
+                        BigDecimal.valueOf(6),
+                        BigDecimal.ZERO,
+                        BigDecimal.valueOf(10),
                         true,
                         Instant.EPOCH));
 
