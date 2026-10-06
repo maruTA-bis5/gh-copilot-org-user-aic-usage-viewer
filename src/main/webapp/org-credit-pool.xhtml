@@ -111,7 +111,7 @@
                             </ui:fragment>
                         </div>
                         <p:progressBar value="#{orgCreditPoolBean.creditPool.usageRatePercent}"
-                                       displayValue="#{orgCreditPoolBean.creditPool.usageRatePercent}%"
+                                       labelTemplate="{value}%"
                                        rendered="#{orgCreditPoolBean.capacityAvailable}"
                                        style="margin-bottom:1rem;" />
 
@@ -150,7 +150,7 @@
                             </ui:fragment>
                         </div>
                         <p:progressBar value="#{orgCreditPoolBean.creditPool.additionalBudgetUsageRatePercent}"
-                                       displayValue="#{orgCreditPoolBean.creditPool.additionalBudgetUsageRatePercent}%"
+                                       labelTemplate="{value}%"
                                        rendered="#{orgCreditPoolBean.creditPool.additionalBudgetSet}"
                                        style="margin-bottom:1rem;" />
 
