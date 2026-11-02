@@ -10,6 +10,8 @@ import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsag
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetDto;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetsResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotSeatDto;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotSeatsResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -22,7 +24,10 @@ import org.jboss.logging.Logger;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -131,7 +136,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
 
         return new OrgCreditPoolOverview(org, yearMonth,
                 totalGross, totalDiscount, totalNet, totalAmount,
-                BigDecimal.ZERO, // poolCapacity must be set by the caller via PoolCapacityCalculator
+                null, // Pool capacity is calculated separately by the service.
                 orgBudget.map(BudgetDto::getBudgetAmount)
                         .map(GitHubApiUsageRepository::toAiCreditAmount)
                         .orElse(null),
@@ -145,7 +150,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
         try {
             response = self.fetchCopilotBillingWithRetry(org);
         } catch (GitHubApiException ex) {
-            // 404 means no Copilot subscription
+            // A 404 may indicate missing or inaccessible billing information.
             if (ex.getHttpStatus() == 404) {
                 return Optional.empty();
             }
@@ -173,6 +178,76 @@ public class GitHubApiUsageRepository implements UsageRepository {
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
+
+    public List<LocalDate> findCopilotSeatAssignmentDates(String org) {
+        List<LocalDate> dates = new ArrayList<>();
+        for (int page = 1; ; page++) {
+            int currentPage = page;
+            CopilotSeatsResponse response = handleExhaustedRetries(
+                    () -> self.fetchCopilotSeatsWithRetry(org, currentPage),
+                    "copilot seats %s page %d".formatted(org, page));
+            response.getSeats().stream().map(GitHubApiUsageRepository::assignmentDate)
+                    .forEach(dates::add);
+            if (response.getSeats().size() < 100) {
+                return List.copyOf(dates);
+            }
+        }
+    }
+
+    public Optional<LocalDate> findCopilotSeatAssignmentDate(String org, String login) {
+        try {
+            return Optional.of(assignmentDate(handleExhaustedRetries(
+                    () -> self.fetchCopilotSeatWithRetry(org, login),
+                    "copilot seat %s/%s".formatted(org, login))));
+        } catch (GitHubApiException ex) {
+            if (ex.getHttpStatus() == 404) {
+                return Optional.empty();
+            }
+            throw ex;
+        }
+    }
+
+    private static LocalDate assignmentDate(CopilotSeatDto seat) {
+        if (seat.getCreatedAt() == null) {
+            LOG.error("GitHub Copilot seat response is missing created_at");
+            throw new GitHubApiException(502, "Copilot seat assignment date is unavailable.");
+        }
+        try {
+            return OffsetDateTime.parse(seat.getCreatedAt())
+                    .atZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+        } catch (DateTimeParseException ex) {
+            LOG.error("GitHub Copilot seat response contains an invalid created_at");
+            throw new GitHubApiException(502, "Copilot seat assignment date is invalid.", ex);
+        }
+    }
+
+    private <T> T handleExhaustedRetries(Supplier<T> action, String context) {
+        try {
+            return action.get();
+        } catch (WebApplicationException ex) {
+            int status = ex.getResponse().getStatus();
+            String summary = buildSafeSummary(status);
+            LOG.errorf("GitHub API failed for %s after retries. HTTP %d: %s",
+                    context, status, summary);
+            throw new GitHubApiException(status, summary, ex);
+        }
+    }
+
+    @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
+           retryOn = WebApplicationException.class, jitter = 0)
+    CopilotSeatsResponse fetchCopilotSeatsWithRetry(String org, int page) {
+        return executeWithRetryHandling(
+                () -> billingClient.getCopilotSeats(org, 100, page),
+                "copilot seats %s page %d".formatted(org, page));
+    }
+
+    @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
+           retryOn = WebApplicationException.class, jitter = 0)
+    CopilotSeatDto fetchCopilotSeatWithRetry(String org, String login) {
+        return executeWithRetryHandling(
+                () -> billingClient.getCopilotSeat(org, login),
+                "copilot seat %s/%s".formatted(org, login));
+    }
 
     /**
      * Calls the GitHub API for a single day.

@@ -3,6 +3,8 @@ package io.github.marutabis5.copilotviewer.infrastructure.github;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsageResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetsResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotSeatDto;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotSeatsResponse;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
@@ -87,6 +89,21 @@ public interface GitHubBillingClient extends AutoCloseable {
     @Path("/orgs/{org}/copilot/billing")
     @Produces(MediaType.APPLICATION_JSON)
     CopilotBillingResponse getCopilotBilling(@PathParam("org") String org);
+
+    @GET
+    @Path("/orgs/{org}/copilot/billing/seats")
+    @Produces(MediaType.APPLICATION_JSON)
+    CopilotSeatsResponse getCopilotSeats(
+            @PathParam("org") String org,
+            @QueryParam("per_page") int perPage,
+            @QueryParam("page") int page);
+
+    @GET
+    @Path("/orgs/{org}/members/{username}/copilot")
+    @Produces(MediaType.APPLICATION_JSON)
+    CopilotSeatDto getCopilotSeat(
+            @PathParam("org") String org,
+            @PathParam("username") String login);
 
     /**
      * Fetches one page of budgets for an organization.

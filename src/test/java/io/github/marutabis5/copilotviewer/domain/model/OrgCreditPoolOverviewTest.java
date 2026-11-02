@@ -11,6 +11,42 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OrgCreditPoolOverviewTest {
 
     @Test
+    void unavailable_pool_capacity_keeps_derived_values_unavailable() {
+        OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
+                "org",
+                YearMonth.of(2026, 9),
+                BigDecimal.valueOf(30),
+                BigDecimal.valueOf(20),
+                BigDecimal.valueOf(8),
+                BigDecimal.valueOf(14),
+                null,
+                BigDecimal.valueOf(10),
+                false,
+                Instant.EPOCH);
+
+        assertThat(overview.isPoolCapacityAvailable()).isFalse();
+        assertThat(overview.getTotalPoolCapacity()).isNull();
+        assertThat(overview.getRemainingPool()).isNull();
+        assertThat(overview.getUsageRatePercent()).isNull();
+        assertThat(overview.getTotalDiscountQuantity()).isEqualByComparingTo("20");
+        assertThat(overview.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("8");
+        assertThat(overview.getRemainingAdditionalCredits()).isEqualByComparingTo("2");
+        assertThat(overview.getAdditionalBudgetUsageRatePercent()).isEqualByComparingTo("80");
+    }
+
+    @Test
+    void zero_pool_capacity_is_still_available() {
+        OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
+                "org", YearMonth.of(2026, 9), BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, Instant.EPOCH);
+
+        assertThat(overview.isPoolCapacityAvailable()).isTrue();
+        assertThat(overview.getTotalPoolCapacity()).isZero();
+        assertThat(overview.getRemainingPool()).isZero();
+        assertThat(overview.getUsageRatePercent()).isZero();
+    }
+
+    @Test
     void derives_additional_budget_values_from_credit_quantity() {
         OrgCreditPoolOverview overview = new OrgCreditPoolOverview(
                 "org",

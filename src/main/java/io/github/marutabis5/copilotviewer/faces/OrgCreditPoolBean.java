@@ -81,9 +81,10 @@ public class OrgCreditPoolBean implements Serializable {
         return creditPool != null;
     }
 
-    /** {@code true} when capacity can be calculated from the current seat count. */
+    /** {@code true} when a current-month overview has a calculated pool capacity. */
     public boolean isCapacityAvailable() {
-        return yearMonth != null && yearMonth.equals(currentUtcMonth());
+        return creditPool != null && creditPool.isPoolCapacityAvailable()
+                && yearMonth != null && yearMonth.equals(currentUtcMonth());
     }
 
     /**

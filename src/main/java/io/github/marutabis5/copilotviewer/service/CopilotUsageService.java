@@ -15,6 +15,7 @@ import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Optional;
 
 /**
  * Application service that orchestrates input validation, repository selection,
@@ -66,6 +67,25 @@ public class CopilotUsageService {
 
         MonthlyUsageReport report = repository.findByOrgAndUserAndMonth(orgValue, login, ym);
 
+        if (ym.equals(YearMonth.now(ZoneOffset.UTC))) {
+            Optional<BigDecimal> includedCredits = apiRepository.findCopilotBillingInfo(orgValue)
+                    .map(billingInfo -> {
+                        validatePlanType(billingInfo, ym);
+                        return apiRepository.findCopilotSeatAssignmentDate(orgValue, login)
+                                .map(date -> PoolCapacityCalculator.calculateSeatCredits(
+                                        billingInfo.getPlanType(), date, ym))
+                                .orElse(BigDecimal.ZERO);
+                    });
+            if (includedCredits.isEmpty()) {
+                LOG.warnf("Copilot billing information is unavailable; "
+                                + "seat included credits cannot be determined: org=%s, user=%s, yearMonth=%s",
+                        orgValue, login, ym);
+            }
+            report = new MonthlyUsageReport(report.getOrg(), report.getLogin(), report.getYearMonth(),
+                    report.getDailyUsages(), report.getFetchedAt(),
+                    includedCredits.orElse(null), includedCredits.isEmpty());
+        }
+
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
         LOG.infof("Usage query completed: org=%s, user=%s, yearMonth=%s, "
                         + "activeDays=%d, totalGrossQuantity=%.4f, elapsedMs=%d",
@@ -79,7 +99,7 @@ public class CopilotUsageService {
 
     /**
      * Fetches organization-wide AI credit usage, budget settings, and billing information,
-     * then computes pool capacity for the requested month.
+     * then computes pool capacity only for the current UTC month.
      *
      * @param yearMonth target year-month
      * @return non-null {@link OrgCreditPoolOverview}
@@ -93,18 +113,13 @@ public class CopilotUsageService {
         LOG.infof("Org credit pool query started: org=%s, yearMonth=%s", orgValue, ym);
         long startNs = System.nanoTime();
 
-        CopilotBillingInfo billingInfo = apiRepository.findCopilotBillingInfo(orgValue)
-                .orElseThrow(() -> new GitHubApiException(404,
-                        "Copilot billing information is unavailable for org: " + orgValue, null));
-
-        BigDecimal poolCapacity;
-        try {
-            poolCapacity = PoolCapacityCalculator.calculatePoolCapacity(
-                    billingInfo.getPlanType(), billingInfo.getTotalSeats(), ym);
-        } catch (IllegalArgumentException e) {
-            throw new GitHubApiException(422,
-                    "Unrecognized Copilot plan type returned by GitHub API: '"
-                            + billingInfo.getPlanType() + "'", e);
+        CopilotBillingInfo billingInfo = requireBillingInfo(orgValue, ym);
+        BigDecimal poolCapacity = null;
+        if (ym.equals(YearMonth.now(ZoneOffset.UTC))) {
+            poolCapacity = apiRepository.findCopilotSeatAssignmentDates(orgValue).stream()
+                    .map(date -> PoolCapacityCalculator.calculateSeatCredits(
+                            billingInfo.getPlanType(), date, ym))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
         OrgCreditPoolOverview rawOverview = apiRepository.findOrgCreditPoolUsage(orgValue, ym);
@@ -122,12 +137,13 @@ public class CopilotUsageService {
                 rawOverview.getFetchedAt());
 
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+        boolean capacityAvailable = overview.isPoolCapacityAvailable();
         LOG.infof("Org credit pool query completed: org=%s, yearMonth=%s, "
-                        + "poolCapacity=%s, remaining=%s, usageRate=%s%%, elapsedMs=%d",
+                        + "poolCapacity=%s, remaining=%s, usageRate=%s, elapsedMs=%d",
                 orgValue, ym,
-                overview.getTotalPoolCapacity(),
-                overview.getRemainingPool(),
-                overview.getUsageRatePercent(),
+                capacityAvailable ? overview.getTotalPoolCapacity() : "unavailable",
+                capacityAvailable ? overview.getRemainingPool() : "unavailable",
+                capacityAvailable ? overview.getUsageRatePercent() + "%" : "unavailable",
                 elapsedMs);
 
         return overview;
@@ -136,6 +152,24 @@ public class CopilotUsageService {
     // -------------------------------------------------------------------------
     // Validation
     // -------------------------------------------------------------------------
+
+    private CopilotBillingInfo requireBillingInfo(String orgValue, YearMonth ym) {
+        CopilotBillingInfo billingInfo = apiRepository.findCopilotBillingInfo(orgValue)
+                .orElseThrow(() -> new GitHubApiException(404,
+                        "Copilot billing information is unavailable for org: " + orgValue, null));
+        validatePlanType(billingInfo, ym);
+        return billingInfo;
+    }
+
+    private static void validatePlanType(CopilotBillingInfo billingInfo, YearMonth ym) {
+        try {
+            PoolCapacityCalculator.calculatePoolCapacity(billingInfo.getPlanType(), 0, ym);
+        } catch (IllegalArgumentException ex) {
+            throw new GitHubApiException(422,
+                    "Unrecognized Copilot plan type returned by GitHub API: '"
+                            + billingInfo.getPlanType() + "'", ex);
+        }
+    }
 
     static String validateOrg(String raw) {
         if (raw == null || raw.isBlank()) {

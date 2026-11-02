@@ -1,6 +1,7 @@
 package io.github.marutabis5.copilotviewer.domain.model;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -22,18 +23,44 @@ public final class MonthlyUsageReport implements Serializable {
     private final YearMonth yearMonth;
     private final List<DailyUsage> dailyUsages;
     private final Instant fetchedAt;
+    private final BigDecimal includedCredits;
+    private final boolean includedCreditsUnavailable;
 
     public MonthlyUsageReport(String org,
                               String login,
                               YearMonth yearMonth,
                               List<DailyUsage> dailyUsages,
                               Instant fetchedAt) {
+        this(org, login, yearMonth, dailyUsages, fetchedAt, null);
+    }
+
+    public MonthlyUsageReport(String org,
+                              String login,
+                              YearMonth yearMonth,
+                              List<DailyUsage> dailyUsages,
+                              Instant fetchedAt,
+                              BigDecimal includedCredits) {
+        this(org, login, yearMonth, dailyUsages, fetchedAt, includedCredits, false);
+    }
+
+    public MonthlyUsageReport(String org,
+                              String login,
+                              YearMonth yearMonth,
+                              List<DailyUsage> dailyUsages,
+                              Instant fetchedAt,
+                              BigDecimal includedCredits,
+                              boolean includedCreditsUnavailable) {
+        if (includedCreditsUnavailable && includedCredits != null) {
+            throw new IllegalArgumentException("Unavailable included credits must not have a value");
+        }
         this.org = Objects.requireNonNull(org, "org must not be null");
         this.login = Objects.requireNonNull(login, "login must not be null");
         this.yearMonth = Objects.requireNonNull(yearMonth, "yearMonth must not be null");
         this.dailyUsages = Collections.unmodifiableList(
                 new ArrayList<>(Objects.requireNonNull(dailyUsages, "dailyUsages must not be null")));
         this.fetchedAt = Objects.requireNonNull(fetchedAt, "fetchedAt must not be null");
+        this.includedCredits = includedCredits;
+        this.includedCreditsUnavailable = includedCreditsUnavailable;
     }
 
     public String getOrg() { return org; }
@@ -41,6 +68,12 @@ public final class MonthlyUsageReport implements Serializable {
     public YearMonth getYearMonth() { return yearMonth; }
     public List<DailyUsage> getDailyUsages() { return dailyUsages; }
     public Instant getFetchedAt() { return fetchedAt; }
+
+    /** Allocated credits for the current month, or null when not calculated. */
+    public BigDecimal getIncludedCredits() { return includedCredits; }
+
+    /** Whether the current month's allocation could not be determined. */
+    public boolean isIncludedCreditsUnavailable() { return includedCreditsUnavailable; }
 
     /** Sum of gross credit quantities across all days in the month. */
     public double getTotalGrossQuantity() {
@@ -67,6 +100,8 @@ public final class MonthlyUsageReport implements Serializable {
         return Objects.equals(org, that.org)
                 && Objects.equals(login, that.login)
                 && Objects.equals(yearMonth, that.yearMonth)
+                && Objects.equals(includedCredits, that.includedCredits)
+                && includedCreditsUnavailable == that.includedCreditsUnavailable
                 && Objects.equals(dailyUsages, that.dailyUsages);
     }
 

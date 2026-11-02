@@ -4,6 +4,8 @@ import io.github.marutabis5.copilotviewer.infrastructure.github.dto.AiCreditUsag
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetDto;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.BudgetsResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotBillingResponse;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotSeatDto;
+import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotSeatsResponse;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.SeatBreakdownDto;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
@@ -19,8 +21,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.YearMonth;
+import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -190,6 +194,10 @@ class GitHubApiUsageRepositoryTest {
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
+        assertThat(result.isPoolCapacityAvailable()).isFalse();
+        assertThat(result.getTotalPoolCapacity()).isNull();
+        assertThat(result.getRemainingPool()).isNull();
+        assertThat(result.getUsageRatePercent()).isNull();
         assertThat(result.getTotalNetQuantity()).isEqualByComparingTo("12.0");
         assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1000.0");
         assertThat(result.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("12.0");
@@ -244,6 +252,13 @@ class GitHubApiUsageRepositoryTest {
     }
 
     @Test
+    void findCopilotBillingInfo_returns_empty_on_null_response() {
+        when(billingClient.getCopilotBilling("org")).thenReturn(null);
+
+        assertThat(repository.findCopilotBillingInfo("org")).isEmpty();
+    }
+
+    @Test
     void findCopilotBillingInfo_maps_response_to_domain() {
         SeatBreakdownDto seatBreakdown = new SeatBreakdownDto();
         seatBreakdown.setTotal(42);
@@ -274,6 +289,85 @@ class GitHubApiUsageRepositoryTest {
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    @Test
+    void findCopilotSeatAssignmentDates_readsEveryPageAndNormalizesToUtc() {
+        CopilotSeatsResponse firstPage = new CopilotSeatsResponse();
+        firstPage.setSeats(Collections.nCopies(100, seat("2026-10-01T00:00:00Z")));
+        CopilotSeatsResponse secondPage = new CopilotSeatsResponse();
+        secondPage.setSeats(List.of(seat("2026-11-02T00:30:00+09:00")));
+        when(billingClient.getCopilotSeats("org", 100, 1)).thenReturn(firstPage);
+        when(billingClient.getCopilotSeats("org", 100, 2)).thenReturn(secondPage);
+
+        var dates = repository.findCopilotSeatAssignmentDates("org");
+
+        assertThat(dates).hasSize(101);
+        assertThat(dates.get(100)).isEqualTo(LocalDate.of(2026, 11, 1));
+        verify(billingClient, never()).getCopilotSeats("org", 100, 3);
+    }
+
+    @Test
+    void findCopilotSeatAssignmentDate_mapsQueriedUserSeat() {
+        when(billingClient.getCopilotSeat("org", "alice"))
+                .thenReturn(seat("2026-11-02T09:33:14+09:00"));
+
+        assertThat(repository.findCopilotSeatAssignmentDate("org", "alice"))
+                .contains(LocalDate.of(2026, 11, 2));
+    }
+
+    @Test
+    void findCopilotSeatAssignmentDate_returnsEmptyForMissingSeat() {
+        WebApplicationException ex = webAppException(404);
+        when(billingClient.getCopilotSeat("org", "alice")).thenThrow(ex);
+
+        assertThat(repository.findCopilotSeatAssignmentDate("org", "alice")).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {403, 429, 503})
+    void seatLookups_surfaceFailuresRatherThanFullSeatFallback(int status) {
+        WebApplicationException ex = webAppException(status);
+        when(billingClient.getCopilotSeats("org", 100, 1)).thenThrow(ex);
+        when(billingClient.getCopilotSeat("org", "alice")).thenThrow(ex);
+
+        assertThatThrownBy(() -> repository.findCopilotSeatAssignmentDates("org"))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus()).isEqualTo(status);
+        assertThatThrownBy(() -> repository.findCopilotSeatAssignmentDate("org", "alice"))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus()).isEqualTo(status);
+    }
+
+    @Test
+    void findCopilotSeatAssignmentDates_returnsEmptyForNoSeats() {
+        when(billingClient.getCopilotSeats("org", 100, 1)).thenReturn(new CopilotSeatsResponse());
+
+        assertThat(repository.findCopilotSeatAssignmentDates("org")).isEmpty();
+    }
+
+    @Test
+    void findCopilotSeatAssignmentDate_rejectsMissingAssignmentDate() {
+        when(billingClient.getCopilotSeat("org", "alice")).thenReturn(new CopilotSeatDto());
+
+        assertThatThrownBy(() -> repository.findCopilotSeatAssignmentDate("org", "alice"))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus()).isEqualTo(502);
+    }
+
+    @Test
+    void findCopilotSeatAssignmentDate_rejectsInvalidAssignmentDate() {
+        when(billingClient.getCopilotSeat("org", "alice")).thenReturn(seat("not-a-date"));
+
+        assertThatThrownBy(() -> repository.findCopilotSeatAssignmentDate("org", "alice"))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus()).isEqualTo(502);
+    }
+
+    private static CopilotSeatDto seat(String createdAt) {
+        CopilotSeatDto seat = new CopilotSeatDto();
+        seat.setCreatedAt(createdAt);
+        return seat;
+    }
 
     private static AiCreditUsageResponse buildResponse(double qty, double amount) {
         UsageItemDto dto = new UsageItemDto();

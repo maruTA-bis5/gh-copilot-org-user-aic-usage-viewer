@@ -70,6 +70,13 @@ public class UsageBean implements Serializable {
 
         try {
             report = usageService.findUsage(login, yearMonth.toString());
+            if (report.isIncludedCreditsUnavailable()) {
+                ctx.addMessage(null, new FacesMessage(
+                        FacesMessage.SEVERITY_WARN,
+                        "Seat included credits unavailable",
+                        "Copilot billing information could not be retrieved. "
+                                + "Check the subscription and API access permissions."));
+            }
         } catch (ValidationException e) {
             ctx.addMessage(null, new FacesMessage(
                     FacesMessage.SEVERITY_WARN,
@@ -108,7 +115,8 @@ public class UsageBean implements Serializable {
 
     /** {@code true} when the report has data to display. */
     public boolean isHasData() {
-        return report != null && !report.isEmpty();
+        return report != null && (!report.isEmpty() || report.getIncludedCredits() != null
+                || report.isIncludedCreditsUnavailable());
     }
 
     // =========================================================================

@@ -15,6 +15,8 @@ import java.util.Objects;
  *
  * <p>{@link #getUsageRatePercent()} is derived as
  * {@code (totalDiscountQuantity / totalPoolCapacity) * 100}.</p>
+ *
+ * <p>When pool capacity is unavailable, both derived values are unavailable.</p>
  */
 public final class OrgCreditPoolOverview implements Serializable {
 
@@ -46,13 +48,13 @@ public final class OrgCreditPoolOverview implements Serializable {
      * @param totalDiscountQuantity total included credit quantity
      * @param totalNetQuantity total additional credit quantity
      * @param totalNetAmount total cost of additional credits
-     * @param totalPoolCapacity included credit capacity
+     * @param totalPoolCapacity included credit capacity, or {@code null} if unavailable
      * @param additionalBudgetCredits configured additional-credit budget in AI credits,
      *                                or {@code null} if unset
      * @param preventFurtherUsage whether usage stops when the additional budget is exhausted
      * @param fetchedAt time at which the source data was fetched
      * @throws NullPointerException if any reference argument except
-     *         {@code additionalBudgetCredits} is {@code null}
+     *         {@code totalPoolCapacity} and {@code additionalBudgetCredits} is {@code null}
      */
     public OrgCreditPoolOverview(String org,
                                  YearMonth yearMonth,
@@ -70,17 +72,22 @@ public final class OrgCreditPoolOverview implements Serializable {
         this.totalDiscountQuantity = Objects.requireNonNull(totalDiscountQuantity, "totalDiscountQuantity must not be null");
         this.totalNetQuantity = Objects.requireNonNull(totalNetQuantity, "totalNetQuantity must not be null");
         this.totalNetAmount = Objects.requireNonNull(totalNetAmount, "totalNetAmount must not be null");
-        this.totalPoolCapacity = Objects.requireNonNull(totalPoolCapacity, "totalPoolCapacity must not be null");
+        this.totalPoolCapacity = totalPoolCapacity;
         this.additionalBudgetCredits = additionalBudgetCredits;
         this.preventFurtherUsage = preventFurtherUsage;
         this.fetchedAt = Objects.requireNonNull(fetchedAt, "fetchedAt must not be null");
 
-        this.remainingPool = totalPoolCapacity.subtract(totalDiscountQuantity);
-        this.usageRatePercent = totalPoolCapacity.compareTo(BigDecimal.ZERO) == 0
-                ? BigDecimal.ZERO
-                : totalDiscountQuantity
-                        .multiply(new BigDecimal("100"))
-                        .divide(totalPoolCapacity, 4, RoundingMode.HALF_UP);
+        if (totalPoolCapacity == null) {
+            this.remainingPool = null;
+            this.usageRatePercent = null;
+        } else {
+            this.remainingPool = totalPoolCapacity.subtract(totalDiscountQuantity);
+            this.usageRatePercent = totalPoolCapacity.compareTo(BigDecimal.ZERO) == 0
+                    ? BigDecimal.ZERO
+                    : totalDiscountQuantity
+                            .multiply(new BigDecimal("100"))
+                            .divide(totalPoolCapacity, 4, RoundingMode.HALF_UP);
+        }
         this.additionalCreditsUsedWithinBudget = additionalBudgetCredits == null
                 ? BigDecimal.ZERO
                 : totalNetQuantity.min(additionalBudgetCredits);
@@ -117,14 +124,23 @@ public final class OrgCreditPoolOverview implements Serializable {
     public BigDecimal getTotalDiscountQuantity() { return totalDiscountQuantity; }
     public BigDecimal getTotalNetQuantity() { return totalNetQuantity; }
     public BigDecimal getTotalNetAmount() { return totalNetAmount; }
+
+    /** Returns the included credit capacity, or {@code null} if unavailable. */
     public BigDecimal getTotalPoolCapacity() { return totalPoolCapacity; }
+
+    /** Returns whether the included credit capacity was calculated. */
+    public boolean isPoolCapacityAvailable() { return totalPoolCapacity != null; }
 
     /** Returns the configured additional-credit budget in AI credits, or {@code null} if none is set. */
     public BigDecimal getAdditionalBudgetCredits() { return additionalBudgetCredits; }
 
     /** Returns whether additional usage is blocked after the configured budget is exhausted. */
     public boolean isPreventFurtherUsage() { return preventFurtherUsage; }
+
+    /** Returns the remaining included credits, or {@code null} if capacity is unavailable. */
     public BigDecimal getRemainingPool() { return remainingPool; }
+
+    /** Returns the included-pool usage rate, or {@code null} if capacity is unavailable. */
     public BigDecimal getUsageRatePercent() { return usageRatePercent; }
 
     /**
