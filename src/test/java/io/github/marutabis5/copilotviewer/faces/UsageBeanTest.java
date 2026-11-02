@@ -59,7 +59,7 @@ class UsageBeanTest {
         ArgumentCaptor<FacesMessage> message = ArgumentCaptor.forClass(FacesMessage.class);
         verify(facesContext).addMessage(isNull(), message.capture());
         assertThat(message.getValue().getSeverity()).isEqualTo(FacesMessage.SEVERITY_WARN);
-        assertThat(message.getValue().getSummary()).contains("allocation unavailable");
+        assertThat(message.getValue().getSummary()).contains("Seat included credits unavailable");
         assertThat(message.getValue().getDetail()).contains("subscription", "permissions");
     }
 

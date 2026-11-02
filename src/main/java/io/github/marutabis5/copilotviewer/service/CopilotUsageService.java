@@ -78,7 +78,7 @@ public class CopilotUsageService {
                     });
             if (includedCredits.isEmpty()) {
                 LOG.warnf("Copilot billing information is unavailable; "
-                                + "included credit allocation cannot be determined: org=%s, user=%s, yearMonth=%s",
+                                + "seat included credits cannot be determined: org=%s, user=%s, yearMonth=%s",
                         orgValue, login, ym);
             }
             report = new MonthlyUsageReport(report.getOrg(), report.getLogin(), report.getYearMonth(),

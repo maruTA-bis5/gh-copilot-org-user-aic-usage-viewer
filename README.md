@@ -106,12 +106,14 @@ summing the organization pool. For example, a Business seat assigned on
 November 2, 2026 receives `floor(1900 * 29 / 30) = 1836` credits; seats assigned
 on or before November 1 receive 1900 credits.
 
-The user page displays this allocation separately from included credits already
-used, including when no usage has been recorded. Allocations are displayed only
+The user page displays these seat included credits separately from included
+credits already used, including when no usage has been recorded. They count
+toward the shared organization pool rather than limiting that user's usage.
+Seat included credits are displayed only
 for the current UTC month: the seat APIs return current assignments, not a
 historical record of removed or reassigned seats. If Copilot billing information
 is unavailable (an HTTP 404 or empty response), the user page still displays
-usage and shows the allocation as "Unavailable", with a warning and a diagnostic
+usage and shows the seat included credits as "Unavailable", with a warning and a diagnostic
 log. Other API errors are reported normally.
 
 The organization pool page calculates included capacity, remaining credits, and
