@@ -137,6 +137,8 @@ class CopilotUsageServiceTest {
         YearMonth ym = YearMonth.of(2026, 9);
         when(apiRepository.findCopilotBillingInfo(TEST_ORG))
                 .thenReturn(Optional.of(new CopilotBillingInfo(2, "business")));
+        when(apiRepository.findCopilotSeatAssignmentDates(TEST_ORG))
+                .thenReturn(List.of(ym.atDay(1), ym.minusMonths(1).atDay(10)));
         when(apiRepository.findOrgCreditPoolUsage(TEST_ORG, ym))
                 .thenReturn(new OrgCreditPoolOverview(
                         TEST_ORG,
@@ -163,6 +165,95 @@ class CopilotUsageServiceTest {
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    @Test
+    void getOrgCreditPoolOverview_sumsProratedCreditsPerSeat() {
+        YearMonth ym = YearMonth.of(2026, 11);
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(3, "business")));
+        when(apiRepository.findCopilotSeatAssignmentDates(TEST_ORG))
+                .thenReturn(List.of(ym.atDay(1), ym.atDay(2), ym.atDay(2)));
+        when(apiRepository.findOrgCreditPoolUsage(TEST_ORG, ym))
+                .thenReturn(emptyOverview(ym));
+
+        assertThat(service.getOrgCreditPoolOverview(ym).getTotalPoolCapacity())
+                .isEqualByComparingTo("5572");
+    }
+
+    @Test
+    void findUsage_returnsAllocationForQueriedUserEvenWithoutUsage() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
+        when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "new-user", ym))
+                .thenReturn(new MonthlyUsageReport(TEST_ORG, "new-user", ym, List.of(), Instant.EPOCH));
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(2, "business")));
+        when(apiRepository.findCopilotSeatAssignmentDate(TEST_ORG, "new-user"))
+                .thenReturn(Optional.of(ym.atDay(2)));
+
+        MonthlyUsageReport result = service.findUsage("new-user", ym.toString());
+
+        assertThat(result.getIncludedCredits()).isEqualByComparingTo(
+                PoolCapacityCalculator.calculateSeatCredits("business", ym.atDay(2), ym));
+        assertThat(result.getTotalDiscountQuantity()).isZero();
+        assertThat(result.isEmpty()).isTrue();
+        verify(apiRepository, never()).findCopilotSeatAssignmentDates(anyString());
+    }
+
+    @Test
+    void findUsage_existingUserReceivesFullAllocation() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
+        when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "existing", ym))
+                .thenReturn(buildReport("existing", ym));
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(2, "business")));
+        when(apiRepository.findCopilotSeatAssignmentDate(TEST_ORG, "existing"))
+                .thenReturn(Optional.of(ym.minusMonths(1).atDay(1)));
+
+        assertThat(service.findUsage("existing", ym.toString()).getIncludedCredits())
+                .isEqualByComparingTo(PoolCapacityCalculator.calculatePoolCapacity("business", 1, ym));
+    }
+
+    @Test
+    void findUsage_withoutSeatHasNoAllocation() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
+        when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "no-seat", ym))
+                .thenReturn(buildReport("no-seat", ym));
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(0, "business")));
+        when(apiRepository.findCopilotSeatAssignmentDate(TEST_ORG, "no-seat"))
+                .thenReturn(Optional.empty());
+
+        assertThat(service.findUsage("no-seat", ym.toString()).getIncludedCredits()).isZero();
+    }
+
+    @Test
+    void findUsage_doesNotEstimatePastAllocationFromCurrentSeats() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC).minusMonths(1);
+        when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "octocat", ym))
+                .thenReturn(buildReport("octocat", ym));
+
+        assertThat(service.findUsage("octocat", ym.toString()).getIncludedCredits()).isNull();
+        verify(apiRepository, never()).findCopilotBillingInfo(anyString());
+        verify(apiRepository, never()).findCopilotSeatAssignmentDate(anyString(), anyString());
+    }
+
+    @Test
+    void getOrgCreditPoolOverview_propagatesSeatApiFailure() {
+        YearMonth ym = YearMonth.of(2026, 9);
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(2, "business")));
+        when(apiRepository.findCopilotSeatAssignmentDates(TEST_ORG))
+                .thenThrow(new GitHubApiException(403, "Forbidden"));
+
+        assertThatThrownBy(() -> service.getOrgCreditPoolOverview(ym))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus()).isEqualTo(403);
+    }
+
+    private static OrgCreditPoolOverview emptyOverview(YearMonth ym) {
+        return new OrgCreditPoolOverview(TEST_ORG, ym, BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, Instant.EPOCH);
+    }
 
     private static MonthlyUsageReport buildReport(String login, YearMonth ym) {
         UsageItem item = new UsageItem("Copilot", "AI Credits", "gpt-4o",

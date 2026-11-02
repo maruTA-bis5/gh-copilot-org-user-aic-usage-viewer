@@ -2,9 +2,11 @@ package io.github.marutabis5.copilotviewer.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.YearMonth;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,6 +16,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Unit tests for {@link PoolCapacityCalculator#calculatePoolCapacity}.
  */
 class PoolCapacityCalculatorTest {
+
+    @ParameterizedTest
+    @CsvSource({
+            "business, 2026-11-02, 2026-11, 1836",
+            "business, 2026-11-01, 2026-11, 1900",
+            "business, 2026-10-15, 2026-11, 1900",
+            "business, 2026-11-30, 2026-11, 63",
+            "business, 2026-12-01, 2026-11, 0",
+            "enterprise, 2026-11-02, 2026-11, 3770",
+            "business, 2026-08-02, 2026-08, 2903",
+            "enterprise, 2026-08-02, 2026-08, 6774",
+            "business, 2028-02-02, 2028-02, 1834",
+            "business, 2027-02-02, 2027-02, 1832"
+    })
+    void seatCredits_proratesRemainingDays(String plan, LocalDate assignedOn,
+                                           YearMonth month, BigDecimal expected) {
+        assertThat(PoolCapacityCalculator.calculateSeatCredits(plan, assignedOn, month))
+                .isEqualByComparingTo(expected);
+    }
 
     // PROMO_START = June 2026, PROMO_END = August 2026
     private static final YearMonth PROMO_START  = YearMonth.of(2026, 6);

@@ -102,13 +102,23 @@
                                 </div>
                                 <div class="label">Total Credits (gross)</div>
                             </div>
+                            <ui:fragment rendered="#{usageBean.report.includedCredits ne null}">
+                                <div class="summary-card">
+                                    <div class="value">
+                                        <h:outputText value="#{usageBean.report.includedCredits}">
+                                            <f:convertNumber maxFractionDigits="0" groupingUsed="true" />
+                                        </h:outputText>
+                                    </div>
+                                    <div class="label">Included Credit Allocation (credits)</div>
+                                </div>
+                            </ui:fragment>
                             <div class="summary-card">
                                 <div class="value">
                                     <h:outputText value="#{usageBean.report.totalDiscountQuantity}">
                                         <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
                                     </h:outputText>
                                 </div>
-                                <div class="label">Total Included Credits</div>
+                                <div class="label">Included Credits Used</div>
                             </div>
                             <div class="summary-card">
                                 <div class="value">

@@ -1,6 +1,8 @@
 package io.github.marutabis5.copilotviewer.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.YearMonth;
 
 /**
@@ -32,6 +34,24 @@ public final class PoolCapacityCalculator {
     private static final int STD_ENTERPRISE    = 3_900;
 
     private PoolCapacityCalculator() {}
+
+    /**
+     * Prorates one seat by remaining calendar days (including its assignment day).
+     * Fractional credits are discarded per seat, matching billing-cent truncation.
+     */
+    public static BigDecimal calculateSeatCredits(String planType, LocalDate assignedOn,
+                                                  YearMonth yearMonth) {
+        BigDecimal fullCredits = calculatePoolCapacity(planType, 1, yearMonth);
+        if (assignedOn.isAfter(yearMonth.atEndOfMonth())) {
+            return BigDecimal.ZERO;
+        }
+        if (!assignedOn.isAfter(yearMonth.atDay(1))) {
+            return fullCredits;
+        }
+        int remainingDays = yearMonth.lengthOfMonth() - assignedOn.getDayOfMonth() + 1;
+        return fullCredits.multiply(BigDecimal.valueOf(remainingDays))
+                .divide(BigDecimal.valueOf(yearMonth.lengthOfMonth()), 0, RoundingMode.DOWN);
+    }
 
     /**
      * Computes total pool capacity ({@code totalSeats * creditsPerSeat}).

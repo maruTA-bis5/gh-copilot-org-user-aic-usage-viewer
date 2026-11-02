@@ -98,6 +98,19 @@ The budgets API returns `budget_amount` in USD. The organization credit pool
 converts it at **1 USD = 100 AI credits** before calculating or displaying
 additional-budget usage.
 
+`GET /orgs/{org}/copilot/billing/seats` (paginated) and
+`GET /orgs/{org}/members/{username}/copilot` supply seat assignment timestamps.
+Included credits are prorated per seat from its UTC assignment date through the
+last day of the month, inclusive, rounding down to whole AI credits before
+summing the organization pool. For example, a Business seat assigned on
+November 2, 2026 receives `floor(1900 * 29 / 30) = 1836` credits; seats assigned
+on or before November 1 receive 1900 credits.
+
+The user page displays this allocation separately from included credits already
+used, including when no usage has been recorded. Allocations are displayed only
+for the current UTC month: the seat APIs return current assignments, not a
+historical record of removed or reassigned seats.
+
 ## License
 
 [MIT](LICENSE) © 2026 Takayuki Maruyama

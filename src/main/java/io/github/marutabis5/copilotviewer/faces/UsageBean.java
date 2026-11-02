@@ -108,7 +108,7 @@ public class UsageBean implements Serializable {
 
     /** {@code true} when the report has data to display. */
     public boolean isHasData() {
-        return report != null && !report.isEmpty();
+        return report != null && (!report.isEmpty() || report.getIncludedCredits() != null);
     }
 
     // =========================================================================
