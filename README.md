@@ -114,6 +114,11 @@ is unavailable (an HTTP 404 or empty response), the user page still displays
 usage and shows the allocation as "Unavailable", with a warning and a diagnostic
 log. Other API errors are reported normally.
 
+The organization pool page calculates included capacity, remaining credits, and
+usage rate only for the current UTC month. For past months these values are
+unavailable, and current seat assignments are not queried; historical usage and
+the additional-budget information remain visible after billing and plan validation.
+
 ## License
 
 [MIT](LICENSE) © 2026 Takayuki Maruyama

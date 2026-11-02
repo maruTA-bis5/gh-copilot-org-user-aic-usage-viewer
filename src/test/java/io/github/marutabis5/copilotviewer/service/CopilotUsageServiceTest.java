@@ -136,7 +136,7 @@ class CopilotUsageServiceTest {
 
     @Test
     void getOrgCreditPoolOverview_preserves_budget_information() {
-        YearMonth ym = YearMonth.of(2026, 9);
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
         when(apiRepository.findCopilotBillingInfo(TEST_ORG))
                 .thenReturn(Optional.of(new CopilotBillingInfo(2, "business")));
         when(apiRepository.findCopilotSeatAssignmentDates(TEST_ORG))
@@ -149,14 +149,16 @@ class CopilotUsageServiceTest {
                         BigDecimal.valueOf(20),
                         BigDecimal.valueOf(12),
                         BigDecimal.valueOf(6),
-                        BigDecimal.ZERO,
+                        null,
                         BigDecimal.valueOf(1000),
                         true,
                         Instant.EPOCH));
 
         OrgCreditPoolOverview result = service.getOrgCreditPoolOverview(ym);
 
-        assertThat(result.getTotalPoolCapacity()).isEqualByComparingTo("3800");
+        assertThat(result.isPoolCapacityAvailable()).isTrue();
+        assertThat(result.getTotalPoolCapacity()).isEqualByComparingTo(
+                PoolCapacityCalculator.calculatePoolCapacity("business", 2, ym));
         assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1000");
         assertThat(result.isPreventFurtherUsage()).isTrue();
         assertThat(result.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("12");
@@ -170,7 +172,7 @@ class CopilotUsageServiceTest {
 
     @Test
     void getOrgCreditPoolOverview_sumsProratedCreditsPerSeat() {
-        YearMonth ym = YearMonth.of(2026, 11);
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
         when(apiRepository.findCopilotBillingInfo(TEST_ORG))
                 .thenReturn(Optional.of(new CopilotBillingInfo(3, "business")));
         when(apiRepository.findCopilotSeatAssignmentDates(TEST_ORG))
@@ -178,8 +180,60 @@ class CopilotUsageServiceTest {
         when(apiRepository.findOrgCreditPoolUsage(TEST_ORG, ym))
                 .thenReturn(emptyOverview(ym));
 
+        int fullCredits = !ym.isBefore(YearMonth.of(2026, 6)) && !ym.isAfter(YearMonth.of(2026, 8))
+                ? 3000 : 1900;
+        int proratedCredits = fullCredits * (ym.lengthOfMonth() - 1) / ym.lengthOfMonth();
         assertThat(service.getOrgCreditPoolOverview(ym).getTotalPoolCapacity())
-                .isEqualByComparingTo("5572");
+                .isEqualByComparingTo(BigDecimal.valueOf(fullCredits + 2L * proratedCredits));
+    }
+
+    @Test
+    void getOrgCreditPoolOverview_pastMonthSkipsSeatsAndLeavesCapacityUnavailable() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC).minusMonths(1);
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(2, "business")));
+        when(apiRepository.findOrgCreditPoolUsage(TEST_ORG, ym))
+                .thenReturn(new OrgCreditPoolOverview(
+                        TEST_ORG, ym, BigDecimal.valueOf(30), BigDecimal.valueOf(20),
+                        BigDecimal.valueOf(12), BigDecimal.valueOf(6), null,
+                        BigDecimal.valueOf(1000), true, Instant.EPOCH));
+
+        OrgCreditPoolOverview result = service.getOrgCreditPoolOverview(ym);
+
+        assertThat(result.isPoolCapacityAvailable()).isFalse();
+        assertThat(result.getTotalPoolCapacity()).isNull();
+        assertThat(result.getRemainingPool()).isNull();
+        assertThat(result.getUsageRatePercent()).isNull();
+        assertThat(result.getTotalGrossQuantity()).isEqualByComparingTo("30");
+        assertThat(result.getTotalDiscountQuantity()).isEqualByComparingTo("20");
+        assertThat(result.getTotalNetQuantity()).isEqualByComparingTo("12");
+        assertThat(result.getTotalNetAmount()).isEqualByComparingTo("6");
+        assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1000");
+        assertThat(result.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("12");
+        assertThat(result.getRemainingAdditionalCredits()).isEqualByComparingTo("988");
+        assertThat(result.getAdditionalBudgetUsageRatePercent()).isEqualByComparingTo("1.2");
+        assertThat(result.getCreditBudgetOverage()).isZero();
+        assertThat(result.isPreventFurtherUsage()).isTrue();
+        assertThat(result.getFetchedAt()).isEqualTo(Instant.EPOCH);
+        verify(apiRepository).findCopilotBillingInfo(TEST_ORG);
+        verify(apiRepository).findOrgCreditPoolUsage(TEST_ORG, ym);
+        verify(apiRepository, never()).findCopilotSeatAssignmentDates(anyString());
+    }
+
+    @Test
+    void getOrgCreditPoolOverview_currentMonthWithNoSeatsHasZeroCapacity() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(0, "business")));
+        when(apiRepository.findCopilotSeatAssignmentDates(TEST_ORG)).thenReturn(List.of());
+        when(apiRepository.findOrgCreditPoolUsage(TEST_ORG, ym)).thenReturn(emptyOverview(ym));
+
+        OrgCreditPoolOverview result = service.getOrgCreditPoolOverview(ym);
+
+        assertThat(result.isPoolCapacityAvailable()).isTrue();
+        assertThat(result.getTotalPoolCapacity()).isZero();
+        assertThat(result.getRemainingPool()).isZero();
+        assertThat(result.getUsageRatePercent()).isZero();
     }
 
     @Test
@@ -295,7 +349,7 @@ class CopilotUsageServiceTest {
 
     @Test
     void getOrgCreditPoolOverview_withoutBillingInfoStillFails() {
-        YearMonth ym = YearMonth.of(2026, 9);
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC).minusMonths(1);
         when(apiRepository.findCopilotBillingInfo(TEST_ORG)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getOrgCreditPoolOverview(ym))
@@ -306,8 +360,32 @@ class CopilotUsageServiceTest {
     }
 
     @Test
+    void getOrgCreditPoolOverview_pastMonthStillValidatesPlan() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC).minusMonths(1);
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(1, "unknown")));
+
+        assertThatThrownBy(() -> service.getOrgCreditPoolOverview(ym))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus()).isEqualTo(422);
+        verify(apiRepository, never()).findCopilotSeatAssignmentDates(anyString());
+        verify(apiRepository, never()).findOrgCreditPoolUsage(anyString(), any());
+    }
+
+    @Test
+    void getOrgCreditPoolOverview_pastMonthPropagatesBillingApiFailure() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC).minusMonths(1);
+        GitHubApiException failure = new GitHubApiException(403, "Forbidden");
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG)).thenThrow(failure);
+
+        assertThatThrownBy(() -> service.getOrgCreditPoolOverview(ym)).isSameAs(failure);
+        verify(apiRepository, never()).findCopilotSeatAssignmentDates(anyString());
+        verify(apiRepository, never()).findOrgCreditPoolUsage(anyString(), any());
+    }
+
+    @Test
     void getOrgCreditPoolOverview_propagatesSeatApiFailure() {
-        YearMonth ym = YearMonth.of(2026, 9);
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
         when(apiRepository.findCopilotBillingInfo(TEST_ORG))
                 .thenReturn(Optional.of(new CopilotBillingInfo(2, "business")));
         when(apiRepository.findCopilotSeatAssignmentDates(TEST_ORG))
@@ -316,11 +394,12 @@ class CopilotUsageServiceTest {
         assertThatThrownBy(() -> service.getOrgCreditPoolOverview(ym))
                 .isInstanceOf(GitHubApiException.class)
                 .extracting(e -> ((GitHubApiException) e).getHttpStatus()).isEqualTo(403);
+        verify(apiRepository, never()).findOrgCreditPoolUsage(anyString(), any());
     }
 
     private static OrgCreditPoolOverview emptyOverview(YearMonth ym) {
         return new OrgCreditPoolOverview(TEST_ORG, ym, BigDecimal.ZERO, BigDecimal.ZERO,
-                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, Instant.EPOCH);
+                BigDecimal.ZERO, BigDecimal.ZERO, null, Instant.EPOCH);
     }
 
     private static MonthlyUsageReport buildReport(String login, YearMonth ym) {

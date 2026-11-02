@@ -194,6 +194,10 @@ class GitHubApiUsageRepositoryTest {
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
+        assertThat(result.isPoolCapacityAvailable()).isFalse();
+        assertThat(result.getTotalPoolCapacity()).isNull();
+        assertThat(result.getRemainingPool()).isNull();
+        assertThat(result.getUsageRatePercent()).isNull();
         assertThat(result.getTotalNetQuantity()).isEqualByComparingTo("12.0");
         assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1000.0");
         assertThat(result.getAdditionalCreditsUsedWithinBudget()).isEqualByComparingTo("12.0");

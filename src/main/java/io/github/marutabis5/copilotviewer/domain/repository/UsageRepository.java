@@ -31,7 +31,7 @@ public interface UsageRepository {
 
     /**
      * Retrieves aggregated organisation-wide AI credit usage for the entire
-     * given month.
+     * given month. Pool capacity is calculated separately by the service.
      *
      * @param org       GitHub organisation name
      * @param yearMonth the target month

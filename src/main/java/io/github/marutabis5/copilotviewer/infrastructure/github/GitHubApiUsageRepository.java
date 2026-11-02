@@ -136,7 +136,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
 
         return new OrgCreditPoolOverview(org, yearMonth,
                 totalGross, totalDiscount, totalNet, totalAmount,
-                BigDecimal.ZERO, // poolCapacity must be set by the caller via PoolCapacityCalculator
+                null, // Pool capacity is calculated separately by the service.
                 orgBudget.map(BudgetDto::getBudgetAmount)
                         .map(GitHubApiUsageRepository::toAiCreditAmount)
                         .orElse(null),

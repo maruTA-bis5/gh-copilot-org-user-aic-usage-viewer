@@ -35,7 +35,7 @@ class OrgCreditPoolBeanTest {
         YearMonth pastMonth = CURRENT_MONTH.minusMonths(1);
         CopilotUsageService usageService = mock(CopilotUsageService.class);
         when(usageService.getOrgCreditPoolOverview(pastMonth))
-                .thenReturn(overview(pastMonth, BigDecimal.ZERO));
+                .thenReturn(overview(pastMonth, null));
 
         OrgCreditPoolBean bean = beanWithFixedCurrentMonth();
         bean.usageService = usageService;
@@ -45,6 +45,34 @@ class OrgCreditPoolBeanTest {
         assertThat(bean.getCreditPool()).isNotNull();
         assertThat(bean.isCapacityAvailable()).isFalse();
         assertThat(bean.isNoData()).isFalse();
+    }
+
+    @Test
+    void currentMonth_with_unavailable_capacity_does_not_report_noData() {
+        CopilotUsageService usageService = mock(CopilotUsageService.class);
+        when(usageService.getOrgCreditPoolOverview(CURRENT_MONTH))
+                .thenReturn(overview(CURRENT_MONTH, null));
+
+        OrgCreditPoolBean bean = beanWithFixedCurrentMonth();
+        bean.usageService = usageService;
+        bean.restoreFromParams();
+
+        assertThat(bean.isCapacityAvailable()).isFalse();
+        assertThat(bean.isNoData()).isFalse();
+    }
+
+    @Test
+    void currentMonth_with_zero_capacity_and_no_budget_is_noData() {
+        CopilotUsageService usageService = mock(CopilotUsageService.class);
+        when(usageService.getOrgCreditPoolOverview(CURRENT_MONTH))
+                .thenReturn(overview(CURRENT_MONTH, BigDecimal.ZERO));
+
+        OrgCreditPoolBean bean = beanWithFixedCurrentMonth();
+        bean.usageService = usageService;
+        bean.restoreFromParams();
+
+        assertThat(bean.isCapacityAvailable()).isTrue();
+        assertThat(bean.isNoData()).isTrue();
     }
 
     @Test

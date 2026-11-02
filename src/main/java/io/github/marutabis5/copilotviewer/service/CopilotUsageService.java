@@ -99,7 +99,7 @@ public class CopilotUsageService {
 
     /**
      * Fetches organization-wide AI credit usage, budget settings, and billing information,
-     * then computes pool capacity for the requested month.
+     * then computes pool capacity only for the current UTC month.
      *
      * @param yearMonth target year-month
      * @return non-null {@link OrgCreditPoolOverview}
@@ -114,10 +114,13 @@ public class CopilotUsageService {
         long startNs = System.nanoTime();
 
         CopilotBillingInfo billingInfo = requireBillingInfo(orgValue, ym);
-        BigDecimal poolCapacity = apiRepository.findCopilotSeatAssignmentDates(orgValue).stream()
-                .map(date -> PoolCapacityCalculator.calculateSeatCredits(
-                        billingInfo.getPlanType(), date, ym))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal poolCapacity = null;
+        if (ym.equals(YearMonth.now(ZoneOffset.UTC))) {
+            poolCapacity = apiRepository.findCopilotSeatAssignmentDates(orgValue).stream()
+                    .map(date -> PoolCapacityCalculator.calculateSeatCredits(
+                            billingInfo.getPlanType(), date, ym))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
 
         OrgCreditPoolOverview rawOverview = apiRepository.findOrgCreditPoolUsage(orgValue, ym);
 
@@ -134,12 +137,13 @@ public class CopilotUsageService {
                 rawOverview.getFetchedAt());
 
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+        boolean capacityAvailable = overview.isPoolCapacityAvailable();
         LOG.infof("Org credit pool query completed: org=%s, yearMonth=%s, "
-                        + "poolCapacity=%s, remaining=%s, usageRate=%s%%, elapsedMs=%d",
+                        + "poolCapacity=%s, remaining=%s, usageRate=%s, elapsedMs=%d",
                 orgValue, ym,
-                overview.getTotalPoolCapacity(),
-                overview.getRemainingPool(),
-                overview.getUsageRatePercent(),
+                capacityAvailable ? overview.getTotalPoolCapacity() : "unavailable",
+                capacityAvailable ? overview.getRemainingPool() : "unavailable",
+                capacityAvailable ? overview.getUsageRatePercent() + "%" : "unavailable",
                 elapsedMs);
 
         return overview;
