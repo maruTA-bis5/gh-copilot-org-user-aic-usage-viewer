@@ -110,7 +110,9 @@ The user page displays this allocation separately from included credits already
 used, including when no usage has been recorded. Allocations are displayed only
 for the current UTC month: the seat APIs return current assignments, not a
 historical record of removed or reassigned seats. If Copilot billing information
-is unavailable, the user page logs a warning and displays an allocation of 0.
+is unavailable (an HTTP 404 or empty response), the user page still displays
+usage and shows the allocation as "Unavailable", with a warning and a diagnostic
+log. Other API errors are reported normally.
 
 ## License
 

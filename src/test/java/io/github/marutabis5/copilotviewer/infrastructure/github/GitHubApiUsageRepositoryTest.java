@@ -248,6 +248,13 @@ class GitHubApiUsageRepositoryTest {
     }
 
     @Test
+    void findCopilotBillingInfo_returns_empty_on_null_response() {
+        when(billingClient.getCopilotBilling("org")).thenReturn(null);
+
+        assertThat(repository.findCopilotBillingInfo("org")).isEmpty();
+    }
+
+    @Test
     void findCopilotBillingInfo_maps_response_to_domain() {
         SeatBreakdownDto seatBreakdown = new SeatBreakdownDto();
         seatBreakdown.setTotal(42);

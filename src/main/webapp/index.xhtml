@@ -102,10 +102,13 @@
                                 </div>
                                 <div class="label">Total Credits (gross)</div>
                             </div>
-                            <ui:fragment rendered="#{usageBean.report.includedCredits ne null}">
+                            <ui:fragment rendered="#{usageBean.report.includedCredits ne null or usageBean.report.includedCreditsUnavailable}">
                                 <div class="summary-card">
                                     <div class="value">
-                                        <h:outputText value="#{usageBean.report.includedCredits}">
+                                        <h:outputText value="Unavailable"
+                                                      rendered="#{usageBean.report.includedCreditsUnavailable}" />
+                                        <h:outputText value="#{usageBean.report.includedCredits}"
+                                                      rendered="#{usageBean.report.includedCredits ne null}">
                                             <f:convertNumber maxFractionDigits="0" groupingUsed="true" />
                                         </h:outputText>
                                     </div>

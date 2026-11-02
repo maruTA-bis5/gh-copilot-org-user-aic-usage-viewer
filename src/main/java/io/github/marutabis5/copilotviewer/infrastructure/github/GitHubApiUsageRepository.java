@@ -150,7 +150,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
         try {
             response = self.fetchCopilotBillingWithRetry(org);
         } catch (GitHubApiException ex) {
-            // 404 means no Copilot subscription
+            // A 404 may indicate missing or inaccessible billing information.
             if (ex.getHttpStatus() == 404) {
                 return Optional.empty();
             }

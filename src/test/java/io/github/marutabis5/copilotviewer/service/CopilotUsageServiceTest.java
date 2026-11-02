@@ -9,6 +9,8 @@ import io.github.marutabis5.copilotviewer.infrastructure.github.GitHubApiUsageRe
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -223,17 +225,57 @@ class CopilotUsageServiceTest {
         when(apiRepository.findCopilotSeatAssignmentDate(TEST_ORG, "no-seat"))
                 .thenReturn(Optional.empty());
 
-        assertThat(service.findUsage("no-seat", ym.toString()).getIncludedCredits()).isZero();
+        MonthlyUsageReport report = service.findUsage("no-seat", ym.toString());
+
+        assertThat(report.getIncludedCredits()).isZero();
+        assertThat(report.isIncludedCreditsUnavailable()).isFalse();
     }
 
     @Test
-    void findUsage_withoutBillingInfoReturnsReportWithZeroAllocation() {
+    void findUsage_withoutBillingInfoPreservesUsageAndMarksAllocationUnavailable() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
+        MonthlyUsageReport original = buildReport("octocat", ym);
+        when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "octocat", ym))
+                .thenReturn(original);
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG)).thenReturn(Optional.empty());
+
+        MonthlyUsageReport report = service.findUsage("octocat", ym.toString());
+
+        assertThat(report.getIncludedCredits()).isNull();
+        assertThat(report.isIncludedCreditsUnavailable()).isTrue();
+        assertThat(report.getOrg()).isEqualTo(original.getOrg());
+        assertThat(report.getLogin()).isEqualTo(original.getLogin());
+        assertThat(report.getYearMonth()).isEqualTo(original.getYearMonth());
+        assertThat(report.getFetchedAt()).isEqualTo(original.getFetchedAt());
+        assertThat(report.getDailyUsages()).isEqualTo(original.getDailyUsages());
+        assertThat(report.getTotalGrossQuantity()).isEqualTo(100);
+        verify(apiRepository, never()).findCopilotSeatAssignmentDate(anyString(), anyString());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {401, 403, 429, 500})
+    void findUsage_propagatesOtherBillingErrors(int status) {
         YearMonth ym = YearMonth.now(ZoneOffset.UTC);
         when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "octocat", ym))
                 .thenReturn(buildReport("octocat", ym));
-        when(apiRepository.findCopilotBillingInfo(TEST_ORG)).thenReturn(Optional.empty());
+        GitHubApiException failure = new GitHubApiException(status, "Billing API failed");
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG)).thenThrow(failure);
 
-        assertThat(service.findUsage("octocat", ym.toString()).getIncludedCredits()).isZero();
+        assertThatThrownBy(() -> service.findUsage("octocat", ym.toString())).isSameAs(failure);
+        verify(apiRepository, never()).findCopilotSeatAssignmentDate(anyString(), anyString());
+    }
+
+    @Test
+    void findUsage_propagatesUnrecognizedPlanType() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
+        when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "octocat", ym))
+                .thenReturn(buildReport("octocat", ym));
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG))
+                .thenReturn(Optional.of(new CopilotBillingInfo(1, "unknown")));
+
+        assertThatThrownBy(() -> service.findUsage("octocat", ym.toString()))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus()).isEqualTo(422);
         verify(apiRepository, never()).findCopilotSeatAssignmentDate(anyString(), anyString());
     }
 
@@ -243,9 +285,24 @@ class CopilotUsageServiceTest {
         when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "octocat", ym))
                 .thenReturn(buildReport("octocat", ym));
 
-        assertThat(service.findUsage("octocat", ym.toString()).getIncludedCredits()).isNull();
+        MonthlyUsageReport report = service.findUsage("octocat", ym.toString());
+
+        assertThat(report.getIncludedCredits()).isNull();
+        assertThat(report.isIncludedCreditsUnavailable()).isFalse();
         verify(apiRepository, never()).findCopilotBillingInfo(anyString());
         verify(apiRepository, never()).findCopilotSeatAssignmentDate(anyString(), anyString());
+    }
+
+    @Test
+    void getOrgCreditPoolOverview_withoutBillingInfoStillFails() {
+        YearMonth ym = YearMonth.of(2026, 9);
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getOrgCreditPoolOverview(ym))
+                .isInstanceOf(GitHubApiException.class)
+                .extracting(e -> ((GitHubApiException) e).getHttpStatus()).isEqualTo(404);
+        verify(apiRepository, never()).findCopilotSeatAssignmentDates(anyString());
+        verify(apiRepository, never()).findOrgCreditPoolUsage(anyString(), any());
     }
 
     @Test

@@ -15,6 +15,7 @@ import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Optional;
 
 /**
  * Application service that orchestrates input validation, repository selection,
@@ -67,22 +68,22 @@ public class CopilotUsageService {
         MonthlyUsageReport report = repository.findByOrgAndUserAndMonth(orgValue, login, ym);
 
         if (ym.equals(YearMonth.now(ZoneOffset.UTC))) {
-            BigDecimal includedCredits = apiRepository.findCopilotBillingInfo(orgValue)
+            Optional<BigDecimal> includedCredits = apiRepository.findCopilotBillingInfo(orgValue)
                     .map(billingInfo -> {
                         validatePlanType(billingInfo, ym);
                         return apiRepository.findCopilotSeatAssignmentDate(orgValue, login)
                                 .map(date -> PoolCapacityCalculator.calculateSeatCredits(
                                         billingInfo.getPlanType(), date, ym))
                                 .orElse(BigDecimal.ZERO);
-                    })
-                    .orElseGet(() -> {
-                        LOG.warnf("Copilot billing information is unavailable; "
-                                        + "using zero included credits: org=%s, user=%s, yearMonth=%s",
-                                orgValue, login, ym);
-                        return BigDecimal.ZERO;
                     });
+            if (includedCredits.isEmpty()) {
+                LOG.warnf("Copilot billing information is unavailable; "
+                                + "included credit allocation cannot be determined: org=%s, user=%s, yearMonth=%s",
+                        orgValue, login, ym);
+            }
             report = new MonthlyUsageReport(report.getOrg(), report.getLogin(), report.getYearMonth(),
-                    report.getDailyUsages(), report.getFetchedAt(), includedCredits);
+                    report.getDailyUsages(), report.getFetchedAt(),
+                    includedCredits.orElse(null), includedCredits.isEmpty());
         }
 
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
