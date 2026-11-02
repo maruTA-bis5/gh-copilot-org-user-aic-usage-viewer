@@ -227,6 +227,17 @@ class CopilotUsageServiceTest {
     }
 
     @Test
+    void findUsage_withoutBillingInfoReturnsReportWithZeroAllocation() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
+        when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "octocat", ym))
+                .thenReturn(buildReport("octocat", ym));
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG)).thenReturn(Optional.empty());
+
+        assertThat(service.findUsage("octocat", ym.toString()).getIncludedCredits()).isZero();
+        verify(apiRepository, never()).findCopilotSeatAssignmentDate(anyString(), anyString());
+    }
+
+    @Test
     void findUsage_doesNotEstimatePastAllocationFromCurrentSeats() {
         YearMonth ym = YearMonth.now(ZoneOffset.UTC).minusMonths(1);
         when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "octocat", ym))

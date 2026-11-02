@@ -109,7 +109,8 @@ on or before November 1 receive 1900 credits.
 The user page displays this allocation separately from included credits already
 used, including when no usage has been recorded. Allocations are displayed only
 for the current UTC month: the seat APIs return current assignments, not a
-historical record of removed or reassigned seats.
+historical record of removed or reassigned seats. If Copilot billing information
+is unavailable, the user page logs a warning and displays an allocation of 0.
 
 ## License
 
