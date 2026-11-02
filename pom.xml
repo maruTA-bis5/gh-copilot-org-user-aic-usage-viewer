@@ -19,7 +19,7 @@
     <jakartaee.version>11.0.0</jakartaee.version>
     <wildfly.version>41.0.1.Final</wildfly.version>
     <wildfly.plugin.version>6.0.0.Final</wildfly.plugin.version>
-    <primefaces.version>16.0.0-RC1</primefaces.version>
+    <primefaces.version>16.0.0</primefaces.version>
     <sqlite.jdbc.version>3.47.1.0</sqlite.jdbc.version>
     <junit.jupiter.version>6.1.3</junit.jupiter.version>
     <mockito.version>5.23.0</mockito.version>
