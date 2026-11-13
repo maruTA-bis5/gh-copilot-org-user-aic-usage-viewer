@@ -2,6 +2,7 @@ package io.github.marutabis5.copilotviewer.domain.model;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -25,6 +26,13 @@ public final class MonthlyUsageReport implements Serializable {
     private final Instant fetchedAt;
     private final BigDecimal includedCredits;
     private final boolean includedCreditsUnavailable;
+    private final BigDecimal userBudgetCapacityCredits;
+    private final BigDecimal userBudgetConsumedCredits;
+    private final boolean universalBudget;
+    private final boolean userBudgetLookupUnavailable;
+    private final boolean preventFurtherUserBudgetUsage;
+    private final BigDecimal remainingUserBudgetCredits;
+    private final BigDecimal userBudgetUsageRatePercent;
 
     public MonthlyUsageReport(String org,
                               String login,
@@ -50,6 +58,65 @@ public final class MonthlyUsageReport implements Serializable {
                               Instant fetchedAt,
                               BigDecimal includedCredits,
                               boolean includedCreditsUnavailable) {
+        this(org, login, yearMonth, dailyUsages, fetchedAt, includedCredits,
+                includedCreditsUnavailable, null);
+    }
+
+    public MonthlyUsageReport(String org,
+                              String login,
+                              YearMonth yearMonth,
+                              List<DailyUsage> dailyUsages,
+                              Instant fetchedAt,
+                              BigDecimal includedCredits,
+                              boolean includedCreditsUnavailable,
+                              BigDecimal userBudgetCapacityCredits) {
+        this(org, login, yearMonth, dailyUsages, fetchedAt, includedCredits,
+                includedCreditsUnavailable, userBudgetCapacityCredits, null, false, false, false);
+    }
+
+    public MonthlyUsageReport(String org,
+                              String login,
+                              YearMonth yearMonth,
+                              List<DailyUsage> dailyUsages,
+                              Instant fetchedAt,
+                              BigDecimal includedCredits,
+                              boolean includedCreditsUnavailable,
+                              BigDecimal userBudgetCapacityCredits,
+                              BigDecimal userBudgetConsumedCredits,
+                              boolean universalBudget) {
+        this(org, login, yearMonth, dailyUsages, fetchedAt, includedCredits,
+                includedCreditsUnavailable, userBudgetCapacityCredits,
+                userBudgetConsumedCredits, universalBudget, false);
+    }
+
+    public MonthlyUsageReport(String org,
+                              String login,
+                              YearMonth yearMonth,
+                              List<DailyUsage> dailyUsages,
+                              Instant fetchedAt,
+                              BigDecimal includedCredits,
+                              boolean includedCreditsUnavailable,
+                              BigDecimal userBudgetCapacityCredits,
+                              BigDecimal userBudgetConsumedCredits,
+                              boolean universalBudget,
+                              boolean userBudgetLookupUnavailable) {
+        this(org, login, yearMonth, dailyUsages, fetchedAt, includedCredits,
+                includedCreditsUnavailable, userBudgetCapacityCredits,
+                userBudgetConsumedCredits, universalBudget, userBudgetLookupUnavailable, false);
+    }
+
+    public MonthlyUsageReport(String org,
+                              String login,
+                              YearMonth yearMonth,
+                              List<DailyUsage> dailyUsages,
+                              Instant fetchedAt,
+                              BigDecimal includedCredits,
+                              boolean includedCreditsUnavailable,
+                              BigDecimal userBudgetCapacityCredits,
+                              BigDecimal userBudgetConsumedCredits,
+                              boolean universalBudget,
+                              boolean userBudgetLookupUnavailable,
+                              boolean preventFurtherUserBudgetUsage) {
         if (includedCreditsUnavailable && includedCredits != null) {
             throw new IllegalArgumentException("Unavailable included credits must not have a value");
         }
@@ -61,6 +128,25 @@ public final class MonthlyUsageReport implements Serializable {
         this.fetchedAt = Objects.requireNonNull(fetchedAt, "fetchedAt must not be null");
         this.includedCredits = includedCredits;
         this.includedCreditsUnavailable = includedCreditsUnavailable;
+        this.userBudgetCapacityCredits = userBudgetCapacityCredits;
+        this.userBudgetConsumedCredits = userBudgetConsumedCredits;
+        this.universalBudget = universalBudget;
+        this.userBudgetLookupUnavailable = userBudgetLookupUnavailable;
+        this.preventFurtherUserBudgetUsage = preventFurtherUserBudgetUsage;
+        if (userBudgetCapacityCredits == null) {
+            this.remainingUserBudgetCredits = null;
+            this.userBudgetUsageRatePercent = null;
+        } else {
+            BigDecimal consumedCredits = userBudgetConsumedCredits != null
+                    ? userBudgetConsumedCredits
+                    : totalGrossQuantity();
+            BigDecimal usedWithinBudget = consumedCredits.min(userBudgetCapacityCredits);
+            this.remainingUserBudgetCredits = userBudgetCapacityCredits.subtract(usedWithinBudget);
+            this.userBudgetUsageRatePercent = userBudgetCapacityCredits.compareTo(BigDecimal.ZERO) == 0
+                    ? BigDecimal.valueOf(100)
+                    : usedWithinBudget.multiply(new BigDecimal("100"))
+                            .divide(userBudgetCapacityCredits, 4, RoundingMode.HALF_UP);
+        }
     }
 
     public String getOrg() { return org; }
@@ -74,6 +160,39 @@ public final class MonthlyUsageReport implements Serializable {
 
     /** Whether the current month's allocation could not be determined. */
     public boolean isIncludedCreditsUnavailable() { return includedCreditsUnavailable; }
+
+    /** Configured user-level budget in AI credits, or {@code null} if none is set. */
+    public BigDecimal getUserBudgetCapacityCredits() { return userBudgetCapacityCredits; }
+
+    /** Budget consumption from the API in AI credits, or {@code null} when derived from user usage. */
+    public BigDecimal getUserBudgetConsumedCredits() { return userBudgetConsumedCredits; }
+
+    /** Whether the applicable budget is a universal multi-user budget. */
+    public boolean isUniversalBudget() { return universalBudget; }
+
+    /** Whether the applicable budget could not be retrieved. */
+    public boolean isUserBudgetLookupUnavailable() { return userBudgetLookupUnavailable; }
+
+    /** Whether the applicable budget prevents usage after it is exhausted. */
+    public boolean isPreventFurtherUserBudgetUsage() { return preventFurtherUserBudgetUsage; }
+
+    /** Whether the configured budget currently blocks further usage. */
+    public boolean isUserBudgetBlocked() {
+        return preventFurtherUserBudgetUsage
+                && userBudgetCapacityCredits != null
+                && (userBudgetConsumedCredits != null
+                ? userBudgetConsumedCredits
+                : totalGrossQuantity()).compareTo(userBudgetCapacityCredits) >= 0;
+    }
+
+    /** Remaining user-level budget credits, or {@code null} if no budget is set. */
+    public BigDecimal getRemainingUserBudgetCredits() { return remainingUserBudgetCredits; }
+
+    /** User-level budget usage rate, or {@code null} if no budget is set. */
+    public BigDecimal getUserBudgetUsageRatePercent() { return userBudgetUsageRatePercent; }
+
+    /** Whether a user-level budget is configured. */
+    public boolean isUserBudgetSet() { return userBudgetCapacityCredits != null; }
 
     /** Sum of gross credit quantities across all days in the month. */
     public double getTotalGrossQuantity() {
@@ -90,6 +209,13 @@ public final class MonthlyUsageReport implements Serializable {
         return dailyUsages.stream().mapToDouble(DailyUsage::getTotalNetAmount).sum();
     }
 
+    private BigDecimal totalGrossQuantity() {
+        return dailyUsages.stream()
+                .flatMap(day -> day.getItems().stream())
+                .map(item -> BigDecimal.valueOf(item.getGrossQuantity()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     /** {@code true} when no usage was recorded for any day in the month. */
     public boolean isEmpty() { return dailyUsages.isEmpty(); }
 
@@ -102,11 +228,20 @@ public final class MonthlyUsageReport implements Serializable {
                 && Objects.equals(yearMonth, that.yearMonth)
                 && Objects.equals(includedCredits, that.includedCredits)
                 && includedCreditsUnavailable == that.includedCreditsUnavailable
+                && Objects.equals(userBudgetCapacityCredits, that.userBudgetCapacityCredits)
+                && Objects.equals(userBudgetConsumedCredits, that.userBudgetConsumedCredits)
+                && universalBudget == that.universalBudget
+                && userBudgetLookupUnavailable == that.userBudgetLookupUnavailable
+                && preventFurtherUserBudgetUsage == that.preventFurtherUserBudgetUsage
                 && Objects.equals(dailyUsages, that.dailyUsages);
     }
 
     @Override
-    public int hashCode() { return Objects.hash(org, login, yearMonth); }
+    public int hashCode() {
+        return Objects.hash(org, login, yearMonth, userBudgetCapacityCredits,
+                userBudgetConsumedCredits, universalBudget, userBudgetLookupUnavailable,
+                preventFurtherUserBudgetUsage);
+    }
 
     @Override
     public String toString() {

@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,6 +23,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class UsageBeanTest {
+
+    @Test
+    void userBudgetSummaryIsCurrentMonthOnly() {
+        YearMonth currentMonth = YearMonth.now(ZoneOffset.UTC);
+        MonthlyUsageReport currentReport = new MonthlyUsageReport(
+                "org", "alice", currentMonth, List.of(), Instant.EPOCH);
+        MonthlyUsageReport pastReport = new MonthlyUsageReport(
+                "org", "alice", currentMonth.minusMonths(1), List.of(), Instant.EPOCH);
+
+        assertThat(beanWithReport(currentReport, mock(FacesContext.class)).isCurrentMonth()).isTrue();
+        assertThat(beanWithReport(pastReport, mock(FacesContext.class)).isCurrentMonth()).isFalse();
+    }
 
     @Test
     void allocationIsVisibleBeforeFirstUsage() {

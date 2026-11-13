@@ -132,7 +132,55 @@
                                 <div class="label">Total Additional Amount</div>
                             </div>
                         </div>
+                    </p:panel>
 
+                    <p:panel header="Applicable Budget Summary" style="margin-top:1.5rem;"
+                             rendered="#{usageBean.currentMonth and (usageBean.report.userBudgetSet or usageBean.report.userBudgetLookupUnavailable)}">
+                            <div class="summary-grid">
+                                <div class="summary-card">
+                                    <div class="value">
+                                        <ui:fragment rendered="#{usageBean.report.userBudgetSet}">
+                                            <h:outputText value="#{usageBean.report.userBudgetCapacityCredits}">
+                                                <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                            </h:outputText>
+                                        </ui:fragment>
+                                        <ui:fragment rendered="#{usageBean.report.userBudgetLookupUnavailable}">
+                                            Not Available
+                                        </ui:fragment>
+                                    </div>
+                                    <div class="label">
+                                        <ui:fragment rendered="#{usageBean.report.userBudgetLookupUnavailable}">
+                                            Applicable Budget Capacity (AI credits)
+                                        </ui:fragment>
+                                        <ui:fragment rendered="#{not usageBean.report.userBudgetLookupUnavailable and usageBean.report.universalBudget}">
+                                            Universal Budget Capacity (AI credits)
+                                        </ui:fragment>
+                                        <ui:fragment rendered="#{not usageBean.report.userBudgetLookupUnavailable and not usageBean.report.universalBudget}">
+                                            User Budget Capacity (AI credits)
+                                        </ui:fragment>
+                                    </div>
+                                </div>
+                                <ui:fragment rendered="#{usageBean.report.userBudgetSet}">
+                                    <div class="summary-card">
+                                        <div class="value">
+                                            <h:outputText value="#{usageBean.report.remainingUserBudgetCredits}">
+                                                <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                            </h:outputText>
+                                        </div>
+                                        <div class="label">Remaining Credits</div>
+                                    </div>
+                                </ui:fragment>
+                            </div>
+                            <h:outputText value="Blocked: the budget does not allow further AI-credit usage."
+                                          rendered="#{usageBean.report.userBudgetBlocked}"
+                                          styleClass="ui-message-error" />
+                            <p:progressBar value="#{usageBean.report.userBudgetUsageRatePercent}"
+                                           labelTemplate="{value}%"
+                                           rendered="#{usageBean.report.userBudgetSet}"
+                                           style="margin-bottom:1rem;" />
+                    </p:panel>
+
+                    <p:panel header="Daily Breakdown" style="margin-top:1.5rem;">
                         <!-- Daily breakdown table -->
                         <p:dataTable value="#{usageBean.report.dailyUsages}"
                                      var="day"
@@ -141,8 +189,6 @@
                                      rowHover="true"
                                      rowKey="#{day.date}"
                                      style="width:100%;">
-
-                            <f:facet name="header">Daily Breakdown</f:facet>
 
                             <p:column headerText="Date" sortBy="#{day.date}" style="width:120px;">
                                 <h:outputText value="#{day.date}" />

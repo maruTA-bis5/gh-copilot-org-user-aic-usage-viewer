@@ -119,6 +119,11 @@ public class UsageBean implements Serializable {
                 || report.isIncludedCreditsUnavailable());
     }
 
+    /** {@code true} when the report covers the current UTC month. */
+    public boolean isCurrentMonth() {
+        return report != null && report.getYearMonth().equals(YearMonth.now(ZoneOffset.UTC));
+    }
+
     // =========================================================================
     // Getters / setters
     // =========================================================================

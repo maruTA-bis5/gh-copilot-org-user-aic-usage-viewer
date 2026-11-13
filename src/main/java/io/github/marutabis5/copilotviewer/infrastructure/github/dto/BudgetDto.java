@@ -21,8 +21,13 @@ public class BudgetDto {
     @JsonbProperty("budget_scope")
     private String budgetScope;
 
+    private String user;
+
     @JsonbProperty("budget_amount")
     private Double budgetAmount;
+
+    @JsonbProperty("consumed_amount")
+    private Double consumedAmount;
 
     @JsonbProperty("prevent_further_usage")
     private boolean preventFurtherUsage;
@@ -39,8 +44,14 @@ public class BudgetDto {
     public String getBudgetScope() { return budgetScope; }
     public void setBudgetScope(String budgetScope) { this.budgetScope = budgetScope; }
 
+    public String getUser() { return user; }
+    public void setUser(String user) { this.user = user; }
+
     public Double getBudgetAmount() { return budgetAmount; }
     public void setBudgetAmount(Double budgetAmount) { this.budgetAmount = budgetAmount; }
+
+    public Double getConsumedAmount() { return consumedAmount; }
+    public void setConsumedAmount(Double consumedAmount) { this.consumedAmount = consumedAmount; }
 
     public boolean isPreventFurtherUsage() { return preventFurtherUsage; }
     public void setPreventFurtherUsage(boolean preventFurtherUsage) { this.preventFurtherUsage = preventFurtherUsage; }

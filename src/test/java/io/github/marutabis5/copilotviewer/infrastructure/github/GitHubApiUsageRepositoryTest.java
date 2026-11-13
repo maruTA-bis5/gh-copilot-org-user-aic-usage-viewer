@@ -9,6 +9,7 @@ import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotSeats
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.SeatBreakdownDto;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
+import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
@@ -189,7 +190,7 @@ class GitHubApiUsageRepositoryTest {
     void findOrgCreditPoolUsage_maps_matching_organization_ai_credit_budget() {
         when(billingClient.getAiCreditUsage("org", 2026, 9, null))
                 .thenReturn(buildResponse(12, 6.0));
-        when(billingClient.getBudgets("org", 100, 1))
+        when(billingClient.getBudgets("org", 100, 1, "organization", null))
                 .thenReturn(buildBudgetsResponse(matchingBudget(10, true), repositoryBudget()));
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
@@ -209,7 +210,7 @@ class GitHubApiUsageRepositoryTest {
     void findOrgCreditPoolUsage_leaves_budget_unset_when_no_matching_org_ai_credit_budget_exists() {
         when(billingClient.getAiCreditUsage("org", 2026, 9, null))
                 .thenReturn(buildResponse(12, 6.0));
-        when(billingClient.getBudgets("org", 100, 1))
+        when(billingClient.getBudgets("org", 100, 1, "organization", null))
                 .thenReturn(buildBudgetsResponse(repositoryBudget()));
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
@@ -223,17 +224,164 @@ class GitHubApiUsageRepositoryTest {
     void findOrgCreditPoolUsage_follows_budget_pagination_until_match_is_found() {
         when(billingClient.getAiCreditUsage("org", 2026, 9, null))
                 .thenReturn(buildResponse(12, 6.0));
-        when(billingClient.getBudgets("org", 100, 1))
+        when(billingClient.getBudgets("org", 100, 1, "organization", null))
                 .thenReturn(buildBudgetsResponse(true, repositoryBudget()));
-        when(billingClient.getBudgets("org", 100, 2))
+        when(billingClient.getBudgets("org", 100, 2, "organization", null))
                 .thenReturn(buildBudgetsResponse(false, matchingBudget(15, false)));
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
         assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1500.0");
         assertThat(result.isPreventFurtherUsage()).isFalse();
-        verify(billingClient).getBudgets("org", 100, 1);
-        verify(billingClient).getBudgets("org", 100, 2);
+        verify(billingClient).getBudgets("org", 100, 1, "organization", null);
+        verify(billingClient).getBudgets("org", 100, 2, "organization", null);
+    }
+
+    @Test
+    void findByOrgAndUserAndMonth_maps_matching_current_user_ai_credit_budget() {
+        YearMonth currentMonth = YearMonth.now(java.time.ZoneOffset.UTC);
+        AiCreditUsageResponse emptyResponse = new AiCreditUsageResponse();
+        UsageItemDto usage = new UsageItemDto();
+        usage.setProduct("Copilot");
+        usage.setSku("AI Credits");
+        usage.setModel("gpt-4o");
+        usage.setUnitType("credits");
+        usage.setGrossQuantity(12);
+        usage.setDiscountQuantity(12);
+        usage.setNetQuantity(0);
+        usage.setNetAmount(1.0);
+        AiCreditUsageResponse usageResponse = new AiCreditUsageResponse();
+        usageResponse.setUsageItems(List.of(usage));
+        when(billingClient.getAiCreditUsage(eq("org"), eq(currentMonth.getYear()),
+                eq(currentMonth.getMonthValue()), anyInt(), eq("alice")))
+                .thenReturn(emptyResponse);
+        when(billingClient.getAiCreditUsage("org", currentMonth.getYear(),
+                currentMonth.getMonthValue(), 1, "alice"))
+                .thenReturn(usageResponse);
+        when(billingClient.getBudgets("org", 100, 1, "user", "alice"))
+                .thenReturn(buildBudgetsResponseWithEffectiveBudget(
+                        effectiveBudget("user-alice", 10, 0.7),
+                        userBudget("alice", 10),
+                        userBudget("bob", 20),
+                        matchingBudget(30, true)));
+
+        var result = repository.findByOrgAndUserAndMonth("org", "alice", currentMonth);
+
+        assertThat(result.getUserBudgetCapacityCredits()).isEqualByComparingTo("1000");
+        assertThat(result.getUserBudgetConsumedCredits()).isEqualByComparingTo("70");
+        assertThat(result.getRemainingUserBudgetCredits()).isEqualByComparingTo("930");
+        assertThat(result.getUserBudgetUsageRatePercent()).isEqualByComparingTo("7");
+        assertThat(result.isUniversalBudget()).isFalse();
+        assertThat(result.isPreventFurtherUserBudgetUsage()).isTrue();
+        verify(billingClient).getBudgets("org", 100, 1, "user", "alice");
+        verify(billingClient, never())
+                .getBudgets("org", 100, 1, "multi_user_customer", "alice");
+    }
+
+    @Test
+    void findByOrgAndUserAndMonth_preserves_usage_when_budget_lookup_fails() {
+        YearMonth currentMonth = YearMonth.now(java.time.ZoneOffset.UTC);
+        WebApplicationException budgetFailure = webAppException(403);
+        when(billingClient.getAiCreditUsage(eq("org"), eq(currentMonth.getYear()),
+                eq(currentMonth.getMonthValue()), anyInt(), eq("alice")))
+                .thenReturn(new AiCreditUsageResponse());
+        when(billingClient.getAiCreditUsage("org", currentMonth.getYear(),
+                currentMonth.getMonthValue(), 1, "alice"))
+                .thenReturn(buildResponse(12, 1));
+        when(billingClient.getBudgets("org", 100, 1, "user", "alice"))
+                .thenThrow(budgetFailure);
+
+        var result = repository.findByOrgAndUserAndMonth("org", "alice", currentMonth);
+
+        assertThat(result.getDailyUsages()).hasSize(1);
+        assertThat(result.getTotalGrossQuantity()).isEqualTo(12);
+        assertThat(result.isUserBudgetLookupUnavailable()).isTrue();
+        assertThat(result.isUserBudgetSet()).isFalse();
+        verify(billingClient, never())
+                .getBudgets("org", 100, 1, "multi_user_customer", "alice");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"user", "multi_user_customer"})
+    void findByOrgAndUserAndMonth_preserves_usage_when_budget_processing_fails(String failedScope) {
+        YearMonth currentMonth = YearMonth.now(java.time.ZoneOffset.UTC);
+        when(billingClient.getAiCreditUsage(eq("org"), eq(currentMonth.getYear()),
+                eq(currentMonth.getMonthValue()), anyInt(), eq("alice")))
+                .thenReturn(new AiCreditUsageResponse());
+        when(billingClient.getAiCreditUsage("org", currentMonth.getYear(),
+                currentMonth.getMonthValue(), 1, "alice"))
+                .thenReturn(buildResponse(12, 1));
+        if ("multi_user_customer".equals(failedScope)) {
+            when(billingClient.getBudgets("org", 100, 1, "user", "alice"))
+                    .thenReturn(buildBudgetsResponse());
+        }
+        when(billingClient.getBudgets("org", 100, 1, failedScope, "alice"))
+                .thenThrow(new ProcessingException("Budget request failed"));
+
+        var result = repository.findByOrgAndUserAndMonth("org", "alice", currentMonth);
+
+        assertThat(result.getDailyUsages()).hasSize(1);
+        assertThat(result.getTotalGrossQuantity()).isEqualTo(12);
+        assertThat(result.isUserBudgetLookupUnavailable()).isTrue();
+        assertThat(result.isUserBudgetSet()).isFalse();
+    }
+
+    @Test
+    void findByOrgAndUserAndMonth_uses_universal_budget_when_user_budget_is_unset() {
+        YearMonth currentMonth = YearMonth.now(java.time.ZoneOffset.UTC);
+        when(billingClient.getAiCreditUsage(eq("org"), eq(currentMonth.getYear()),
+                eq(currentMonth.getMonthValue()), anyInt(), eq("alice")))
+                .thenReturn(new AiCreditUsageResponse());
+        when(billingClient.getAiCreditUsage("org", currentMonth.getYear(),
+                currentMonth.getMonthValue(), 1, "alice"))
+                .thenReturn(buildResponse(12, 1));
+        when(billingClient.getBudgets("org", 100, 1, "user", "alice"))
+                .thenReturn(buildBudgetsResponse());
+        when(billingClient.getBudgets("org", 100, 1, "multi_user_customer", "alice"))
+                .thenReturn(buildBudgetsResponseWithEffectiveBudget(
+                        effectiveBudget("universal-1", 25, 4.5),
+                        universalBudget("universal-1", 25, 9)));
+
+        var result = repository.findByOrgAndUserAndMonth("org", "alice", currentMonth);
+
+        assertThat(result.isUserBudgetSet()).isTrue();
+        assertThat(result.isUniversalBudget()).isTrue();
+        assertThat(result.getUserBudgetCapacityCredits()).isEqualByComparingTo("2500");
+        assertThat(result.getUserBudgetConsumedCredits()).isEqualByComparingTo("450");
+        assertThat(result.getRemainingUserBudgetCredits()).isEqualByComparingTo("2050");
+        assertThat(result.getUserBudgetUsageRatePercent()).isEqualByComparingTo("18");
+        verify(billingClient).getBudgets("org", 100, 1, "multi_user_customer", "alice");
+    }
+
+    @Test
+    void findByOrgAndUserAndMonth_leaves_budget_unset_when_no_user_or_universal_budget_exists() {
+        YearMonth currentMonth = YearMonth.now(java.time.ZoneOffset.UTC);
+        when(billingClient.getAiCreditUsage(eq("org"), eq(currentMonth.getYear()),
+                eq(currentMonth.getMonthValue()), anyInt(), eq("alice")))
+                .thenReturn(new AiCreditUsageResponse());
+        when(billingClient.getBudgets("org", 100, 1, "user", "alice"))
+                .thenReturn(buildBudgetsResponse());
+        when(billingClient.getBudgets("org", 100, 1, "multi_user_customer", "alice"))
+                .thenReturn(buildBudgetsResponse());
+
+        var result = repository.findByOrgAndUserAndMonth("org", "alice", currentMonth);
+
+        assertThat(result.isUserBudgetSet()).isFalse();
+        assertThat(result.getRemainingUserBudgetCredits()).isNull();
+        assertThat(result.getUserBudgetUsageRatePercent()).isNull();
+    }
+
+    @Test
+    void findByOrgAndUserAndMonth_does_not_fetch_user_budget_for_past_month() {
+        YearMonth pastMonth = YearMonth.now(java.time.ZoneOffset.UTC).minusMonths(1);
+        when(billingClient.getAiCreditUsage(eq("org"), eq(pastMonth.getYear()),
+                eq(pastMonth.getMonthValue()), anyInt(), eq("alice")))
+                .thenReturn(new AiCreditUsageResponse());
+
+        var result = repository.findByOrgAndUserAndMonth("org", "alice", pastMonth);
+
+        assertThat(result.isUserBudgetSet()).isFalse();
+        verify(billingClient, never()).getBudgets(anyString(), anyInt(), anyInt(), anyString(), any());
     }
 
     // =========================================================================
@@ -396,6 +544,13 @@ class GitHubApiUsageRepositoryTest {
         return response;
     }
 
+    private static BudgetsResponse buildBudgetsResponseWithEffectiveBudget(
+            BudgetDto effectiveBudget, BudgetDto... budgets) {
+        BudgetsResponse response = buildBudgetsResponse(budgets);
+        response.setEffectiveBudget(effectiveBudget);
+        return response;
+    }
+
     private static BudgetDto matchingBudget(double budgetUsd, boolean preventFurtherUsage) {
         BudgetDto budget = new BudgetDto();
         budget.setBudgetScope("organization");
@@ -403,6 +558,38 @@ class GitHubApiUsageRepositoryTest {
         budget.setBudgetProductSku("ai_credits");
         budget.setBudgetAmount(budgetUsd);
         budget.setPreventFurtherUsage(preventFurtherUsage);
+        return budget;
+    }
+
+    private static BudgetDto universalBudget(String id, double budgetUsd, double consumedUsd) {
+        BudgetDto budget = new BudgetDto();
+        budget.setId(id);
+        budget.setBudgetScope("multi_user_customer");
+        budget.setBudgetType("BundlePricing");
+        budget.setBudgetProductSku("ai_credits");
+        budget.setBudgetAmount(budgetUsd);
+        budget.setConsumedAmount(consumedUsd);
+        budget.setPreventFurtherUsage(true);
+        return budget;
+    }
+
+    private static BudgetDto effectiveBudget(String id, double budgetUsd, double consumedUsd) {
+        BudgetDto budget = new BudgetDto();
+        budget.setId(id);
+        budget.setBudgetAmount(budgetUsd);
+        budget.setConsumedAmount(consumedUsd);
+        return budget;
+    }
+
+    private static BudgetDto userBudget(String login, double budgetUsd) {
+        BudgetDto budget = new BudgetDto();
+        budget.setId("user-" + login);
+        budget.setBudgetScope("user");
+        budget.setUser(login);
+        budget.setBudgetType("BundlePricing");
+        budget.setBudgetProductSku("ai_credits");
+        budget.setBudgetAmount(budgetUsd);
+        budget.setPreventFurtherUsage(true);
         return budget;
     }
 
