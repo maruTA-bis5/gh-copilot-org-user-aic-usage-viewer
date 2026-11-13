@@ -78,7 +78,8 @@
 
                 <!-- Has data -->
                 <ui:fragment rendered="#{usageBean.hasData and not facesContext.validationFailed}">
-                    <p:panel header="Usage Report" style="margin-top:1.5rem;">
+                    <p:panel header="Usage Report" styleClass="usage-report-panel"
+                             style="margin-top:1.5rem;">
 
                         <!-- Summary cards -->
                         <div class="summary-grid">
