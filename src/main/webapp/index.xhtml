@@ -78,8 +78,7 @@
 
                 <!-- Has data -->
                 <ui:fragment rendered="#{usageBean.hasData and not facesContext.validationFailed}">
-                    <p:panel style="margin-top:1.5rem;">
-                        <h3>Usage Report</h3>
+                    <p:panel header="Usage Report" style="margin-top:1.5rem;">
 
                         <!-- Summary cards -->
                         <div class="summary-grid">
@@ -133,9 +132,10 @@
                                 <div class="label">Total Additional Amount</div>
                             </div>
                         </div>
+                    </p:panel>
 
-                        <ui:fragment rendered="#{usageBean.currentMonth}">
-                            <h3>Applicable Budget Summary</h3>
+                    <p:panel header="Applicable Budget Summary" style="margin-top:1.5rem;"
+                             rendered="#{usageBean.currentMonth and (usageBean.report.userBudgetSet or usageBean.report.userBudgetLookupUnavailable)}">
                             <div class="summary-grid">
                                 <div class="summary-card">
                                     <div class="value">
@@ -146,9 +146,6 @@
                                         </ui:fragment>
                                         <ui:fragment rendered="#{usageBean.report.userBudgetLookupUnavailable}">
                                             Not Available
-                                        </ui:fragment>
-                                        <ui:fragment rendered="#{not usageBean.report.userBudgetSet and not usageBean.report.userBudgetLookupUnavailable}">
-                                            Not Set
                                         </ui:fragment>
                                     </div>
                                     <div class="label">
@@ -181,8 +178,9 @@
                                            labelTemplate="{value}%"
                                            rendered="#{usageBean.report.userBudgetSet}"
                                            style="margin-bottom:1rem;" />
-                        </ui:fragment>
+                    </p:panel>
 
+                    <p:panel header="Daily Breakdown" style="margin-top:1.5rem;">
                         <!-- Daily breakdown table -->
                         <p:dataTable value="#{usageBean.report.dailyUsages}"
                                      var="day"
@@ -191,8 +189,6 @@
                                      rowHover="true"
                                      rowKey="#{day.date}"
                                      style="width:100%;">
-
-                            <f:facet name="header">Daily Breakdown</f:facet>
 
                             <p:column headerText="Date" sortBy="#{day.date}" style="width:120px;">
                                 <h:outputText value="#{day.date}" />
