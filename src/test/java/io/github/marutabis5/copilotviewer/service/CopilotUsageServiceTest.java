@@ -256,6 +256,25 @@ class CopilotUsageServiceTest {
     }
 
     @Test
+    void findUsage_preservesApplicableBudgetWhenAddingSeatAllocation() {
+        YearMonth ym = YearMonth.now(ZoneOffset.UTC);
+        MonthlyUsageReport report = new MonthlyUsageReport(
+                TEST_ORG, "octocat", ym, List.of(), Instant.EPOCH,
+                null, false, BigDecimal.valueOf(1000), BigDecimal.valueOf(250), true);
+        when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "octocat", ym))
+                .thenReturn(report);
+        when(apiRepository.findCopilotBillingInfo(TEST_ORG)).thenReturn(Optional.empty());
+
+        MonthlyUsageReport result = service.findUsage("octocat", ym.toString());
+
+        assertThat(result.getUserBudgetCapacityCredits()).isEqualByComparingTo("1000");
+        assertThat(result.getUserBudgetConsumedCredits()).isEqualByComparingTo("250");
+        assertThat(result.getRemainingUserBudgetCredits()).isEqualByComparingTo("750");
+        assertThat(result.getUserBudgetUsageRatePercent()).isEqualByComparingTo("25");
+        assertThat(result.isUniversalBudget()).isTrue();
+    }
+
+    @Test
     void findUsage_existingUserReceivesFullAllocation() {
         YearMonth ym = YearMonth.now(ZoneOffset.UTC);
         when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "existing", ym))

@@ -15,6 +15,9 @@ public class BudgetsResponse {
     @JsonbProperty("has_next_page")
     private boolean hasNextPage;
 
+    @JsonbProperty("effective_budget")
+    private BudgetDto effectiveBudget;
+
     /** Returns the budgets in this page, or an empty list if the field was omitted. */
     public List<BudgetDto> getBudgets() {
         return budgets != null ? budgets : Collections.emptyList();
@@ -24,4 +27,7 @@ public class BudgetsResponse {
 
     public boolean isHasNextPage() { return hasNextPage; }
     public void setHasNextPage(boolean hasNextPage) { this.hasNextPage = hasNextPage; }
+
+    public BudgetDto getEffectiveBudget() { return effectiveBudget; }
+    public void setEffectiveBudget(BudgetDto effectiveBudget) { this.effectiveBudget = effectiveBudget; }
 }

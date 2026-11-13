@@ -32,4 +32,43 @@ class MonthlyUsageReportTest {
                 BigDecimal.ZERO, true))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void userBudgetMetricsUseMonthlyNetCreditsAndCapAtTheBudget() {
+        YearMonth month = YearMonth.of(2026, 11);
+        DailyUsage day = new DailyUsage(month.atDay(1), List.of(
+                new UsageItem("Copilot", "AI Credits", "model", "credits",
+                        20, 0, 12, 1)));
+
+        MonthlyUsageReport report = new MonthlyUsageReport(
+                "org", "alice", month, List.of(day), Instant.EPOCH,
+                null, false, BigDecimal.TEN);
+
+        assertThat(report.isUserBudgetSet()).isTrue();
+        assertThat(report.getUserBudgetCapacityCredits()).isEqualByComparingTo("10");
+        assertThat(report.getRemainingUserBudgetCredits()).isZero();
+        assertThat(report.getUserBudgetUsageRatePercent()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    void userBudgetMetricsAreUnavailableWhenNoBudgetIsSet() {
+        MonthlyUsageReport report = new MonthlyUsageReport(
+                "org", "alice", YearMonth.of(2026, 11), List.of(), Instant.EPOCH);
+
+        assertThat(report.isUserBudgetSet()).isFalse();
+        assertThat(report.getUserBudgetCapacityCredits()).isNull();
+        assertThat(report.getRemainingUserBudgetCredits()).isNull();
+        assertThat(report.getUserBudgetUsageRatePercent()).isNull();
+    }
+
+    @Test
+    void universalBudgetUsesApiReportedPerUserConsumption() {
+        MonthlyUsageReport report = new MonthlyUsageReport(
+                "org", "alice", YearMonth.of(2026, 11), List.of(), Instant.EPOCH,
+                null, false, BigDecimal.valueOf(1000), BigDecimal.valueOf(450), true);
+
+        assertThat(report.isUniversalBudget()).isTrue();
+        assertThat(report.getRemainingUserBudgetCredits()).isEqualByComparingTo("550");
+        assertThat(report.getUserBudgetUsageRatePercent()).isEqualByComparingTo("45");
+    }
 }

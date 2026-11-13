@@ -48,6 +48,8 @@ public class GitHubApiUsageRepository implements UsageRepository {
 
     private static final Logger LOG = Logger.getLogger(GitHubApiUsageRepository.class);
     private static final String ORGANIZATION_SCOPE = "organization";
+    private static final String USER_SCOPE = "user";
+    private static final String MULTI_USER_CUSTOMER_SCOPE = "multi_user_customer";
     private static final String BUNDLE_PRICING = "BundlePricing";
     private static final String AI_CREDITS = "ai_credits";
     private static final BigDecimal AI_CREDITS_PER_USD = BigDecimal.valueOf(100);
@@ -94,7 +96,35 @@ public class GitHubApiUsageRepository implements UsageRepository {
             }
         }
 
-        return new MonthlyUsageReport(org, login, yearMonth, dailyUsages, Instant.now());
+        BigDecimal userBudgetCapacityCredits = null;
+        BigDecimal userBudgetConsumedCredits = null;
+        boolean universalBudget = false;
+        if (yearMonth.equals(YearMonth.now(ZoneOffset.UTC))) {
+            Optional<BudgetDto> applicableBudget;
+            try {
+                applicableBudget = findUserAiCreditsBudget(org, login);
+                if (applicableBudget.isEmpty()) {
+                    applicableBudget = findUniversalAiCreditsBudget(org, login);
+                    universalBudget = applicableBudget.isPresent();
+                }
+            } catch (WebApplicationException ex) {
+                int status = ex.getResponse().getStatus();
+                String summary = buildSafeSummary(status);
+                LOG.errorf("GitHub API failed for user budgets %s/%s after retries. HTTP %d: %s",
+                        org, login, status, summary);
+                throw new GitHubApiException(status, summary, ex);
+            }
+            userBudgetCapacityCredits = applicableBudget.map(BudgetDto::getBudgetAmount)
+                    .map(GitHubApiUsageRepository::toAiCreditAmount)
+                    .orElse(null);
+            if (universalBudget) {
+                userBudgetConsumedCredits = applicableBudget.map(BudgetDto::getConsumedAmount)
+                        .map(GitHubApiUsageRepository::toAiCreditAmount)
+                        .orElse(null);
+            }
+        }
+        return new MonthlyUsageReport(org, login, yearMonth, dailyUsages, Instant.now(),
+                null, false, userBudgetCapacityCredits, userBudgetConsumedCredits, universalBudget);
     }
 
     @Override
@@ -290,9 +320,9 @@ public class GitHubApiUsageRepository implements UsageRepository {
 
     @Retry(maxRetries = 2, delay = 1_000, delayUnit = ChronoUnit.MILLIS,
            retryOn = WebApplicationException.class, jitter = 0)
-    BudgetsResponse fetchBudgetsWithRetry(String org, int page) {
+    BudgetsResponse fetchBudgetsWithRetry(String org, int page, String scope, String user) {
         return executeWithRetryHandling(
-                () -> billingClient.getBudgets(org, 100, page),
+                () -> billingClient.getBudgets(org, 100, page, scope, user),
                 "budgets %s page %d".formatted(org, page));
     }
 
@@ -337,7 +367,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
     private Optional<BudgetDto> findOrganizationAiCreditsBudget(String org) {
         int page = 1;
         while (true) {
-            BudgetsResponse response = self.fetchBudgetsWithRetry(org, page);
+            BudgetsResponse response = self.fetchBudgetsWithRetry(org, page, ORGANIZATION_SCOPE, null);
             Optional<BudgetDto> budget = response.getBudgets().stream()
                     .filter(dto -> ORGANIZATION_SCOPE.equalsIgnoreCase(dto.getBudgetScope()))
                     .filter(dto -> BUNDLE_PRICING.equalsIgnoreCase(dto.getBudgetType()))
@@ -347,6 +377,58 @@ public class GitHubApiUsageRepository implements UsageRepository {
                 return budget;
             }
             page++;
+        }
+    }
+
+    /**
+     * Finds the user's AI credits budget, scanning subsequent pages as needed.
+     *
+     * @param org organization containing the budget
+     * @param login user whose budget is searched
+     * @return the matching budget, or an empty optional after the final page
+     */
+    private Optional<BudgetDto> findUserAiCreditsBudget(String org, String login) {
+        return findAiCreditsBudget(org, login, USER_SCOPE);
+    }
+
+    private Optional<BudgetDto> findUniversalAiCreditsBudget(String org, String login) {
+        return findAiCreditsBudget(org, login, MULTI_USER_CUSTOMER_SCOPE);
+    }
+
+    private Optional<BudgetDto> findAiCreditsBudget(String org, String login, String scope) {
+        int page = 1;
+        while (true) {
+            BudgetsResponse response = self.fetchBudgetsWithRetry(org, page, scope, login);
+            Optional<BudgetDto> budget = response.getBudgets().stream()
+                    .filter(dto -> scope.equalsIgnoreCase(dto.getBudgetScope()))
+                    .filter(dto -> USER_SCOPE.equals(scope)
+                            ? login.equalsIgnoreCase(dto.getUser())
+                            : MULTI_USER_CUSTOMER_SCOPE.equals(scope))
+                    .filter(dto -> BUNDLE_PRICING.equalsIgnoreCase(dto.getBudgetType()))
+                    .filter(dto -> AI_CREDITS.equalsIgnoreCase(dto.getBudgetProductSku()))
+                    .findFirst();
+            if (budget.isPresent()) {
+                if (MULTI_USER_CUSTOMER_SCOPE.equals(scope)) {
+                    applyEffectiveBudgetConsumption(budget.get(), response.getEffectiveBudget());
+                }
+                return budget;
+            }
+            if (!response.isHasNextPage()) {
+                return budget;
+            }
+            page++;
+        }
+    }
+
+    private static void applyEffectiveBudgetConsumption(BudgetDto budget, BudgetDto effectiveBudget) {
+        if (effectiveBudget != null && effectiveBudget.getId() != null
+                && effectiveBudget.getId().equals(budget.getId())) {
+            if (effectiveBudget.getBudgetAmount() != null) {
+                budget.setBudgetAmount(effectiveBudget.getBudgetAmount());
+            }
+            if (effectiveBudget.getConsumedAmount() != null) {
+                budget.setConsumedAmount(effectiveBudget.getConsumedAmount());
+            }
         }
     }
 

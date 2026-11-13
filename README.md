@@ -98,6 +98,14 @@ The budgets API returns `budget_amount` in USD. The organization credit pool
 converts it at **1 USD = 100 AI credits** before calculating or displaying
 additional-budget usage.
 
+The user page shows the matching user's AI-credit budget capacity, remaining
+credits, and usage progress for the current UTC month only. It prefers a
+user-scoped budget and falls back to the organization's universal
+`multi_user_customer` budget. Budget amounts are converted from USD at the same
+rate; universal-budget consumption comes from the API's effective per-user
+budget state. When neither budget is set, capacity is shown as "Not Set" and
+remaining credits and progress are hidden.
+
 `GET /orgs/{org}/copilot/billing/seats` (paginated) and
 `GET /orgs/{org}/members/{username}/copilot` supply seat assignment timestamps.
 Included credits are prorated per seat from its UTC assignment date through the

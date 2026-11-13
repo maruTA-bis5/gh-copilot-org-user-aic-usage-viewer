@@ -83,7 +83,10 @@ public class CopilotUsageService {
             }
             report = new MonthlyUsageReport(report.getOrg(), report.getLogin(), report.getYearMonth(),
                     report.getDailyUsages(), report.getFetchedAt(),
-                    includedCredits.orElse(null), includedCredits.isEmpty());
+                    includedCredits.orElse(null), includedCredits.isEmpty(),
+                    report.getUserBudgetCapacityCredits(),
+                    report.getUserBudgetConsumedCredits(),
+                    report.isUniversalBudget());
         }
 
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;

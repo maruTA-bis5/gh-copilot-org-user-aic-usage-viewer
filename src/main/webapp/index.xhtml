@@ -133,6 +133,46 @@
                             </div>
                         </div>
 
+                        <ui:fragment rendered="#{usageBean.currentMonth}">
+                            <h3>Applicable Budget Summary</h3>
+                            <div class="summary-grid">
+                                <div class="summary-card">
+                                    <div class="value">
+                                        <ui:fragment rendered="#{usageBean.report.userBudgetSet}">
+                                            <h:outputText value="#{usageBean.report.userBudgetCapacityCredits}">
+                                                <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                            </h:outputText>
+                                        </ui:fragment>
+                                        <ui:fragment rendered="#{not usageBean.report.userBudgetSet}">
+                                            Not Set
+                                        </ui:fragment>
+                                    </div>
+                                    <div class="label">
+                                        <ui:fragment rendered="#{usageBean.report.universalBudget}">
+                                            Universal Budget Capacity (AI credits)
+                                        </ui:fragment>
+                                        <ui:fragment rendered="#{not usageBean.report.universalBudget}">
+                                            User Budget Capacity (AI credits)
+                                        </ui:fragment>
+                                    </div>
+                                </div>
+                                <ui:fragment rendered="#{usageBean.report.userBudgetSet}">
+                                    <div class="summary-card">
+                                        <div class="value">
+                                            <h:outputText value="#{usageBean.report.remainingUserBudgetCredits}">
+                                                <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                            </h:outputText>
+                                        </div>
+                                        <div class="label">Remaining Credits</div>
+                                    </div>
+                                </ui:fragment>
+                            </div>
+                            <p:progressBar value="#{usageBean.report.userBudgetUsageRatePercent}"
+                                           labelTemplate="{value}%"
+                                           rendered="#{usageBean.report.userBudgetSet}"
+                                           style="margin-bottom:1rem;" />
+                        </ui:fragment>
+
                         <!-- Daily breakdown table -->
                         <p:dataTable value="#{usageBean.report.dailyUsages}"
                                      var="day"
