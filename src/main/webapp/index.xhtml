@@ -143,15 +143,21 @@
                                                 <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
                                             </h:outputText>
                                         </ui:fragment>
-                                        <ui:fragment rendered="#{not usageBean.report.userBudgetSet}">
+                                        <ui:fragment rendered="#{usageBean.report.userBudgetLookupUnavailable}">
+                                            Not Available
+                                        </ui:fragment>
+                                        <ui:fragment rendered="#{not usageBean.report.userBudgetSet and not usageBean.report.userBudgetLookupUnavailable}">
                                             Not Set
                                         </ui:fragment>
                                     </div>
                                     <div class="label">
-                                        <ui:fragment rendered="#{usageBean.report.universalBudget}">
+                                        <ui:fragment rendered="#{usageBean.report.userBudgetLookupUnavailable}">
+                                            Applicable Budget Capacity (AI credits)
+                                        </ui:fragment>
+                                        <ui:fragment rendered="#{not usageBean.report.userBudgetLookupUnavailable and usageBean.report.universalBudget}">
                                             Universal Budget Capacity (AI credits)
                                         </ui:fragment>
-                                        <ui:fragment rendered="#{not usageBean.report.universalBudget}">
+                                        <ui:fragment rendered="#{not usageBean.report.userBudgetLookupUnavailable and not usageBean.report.universalBudget}">
                                             User Budget Capacity (AI credits)
                                         </ui:fragment>
                                     </div>
@@ -167,6 +173,9 @@
                                     </div>
                                 </ui:fragment>
                             </div>
+                            <h:outputText value="Blocked: the budget does not allow further AI-credit usage."
+                                          rendered="#{usageBean.report.userBudgetBlocked}"
+                                          styleClass="ui-message-error" />
                             <p:progressBar value="#{usageBean.report.userBudgetUsageRatePercent}"
                                            labelTemplate="{value}%"
                                            rendered="#{usageBean.report.userBudgetSet}"

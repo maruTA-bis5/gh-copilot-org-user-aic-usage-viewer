@@ -246,8 +246,8 @@ class GitHubApiUsageRepositoryTest {
         usage.setModel("gpt-4o");
         usage.setUnitType("credits");
         usage.setGrossQuantity(12);
-        usage.setDiscountQuantity(0);
-        usage.setNetQuantity(12);
+        usage.setDiscountQuantity(12);
+        usage.setNetQuantity(0);
         usage.setNetAmount(1.0);
         AiCreditUsageResponse usageResponse = new AiCreditUsageResponse();
         usageResponse.setUsageItems(List.of(usage));
@@ -270,6 +270,29 @@ class GitHubApiUsageRepositoryTest {
         assertThat(result.getUserBudgetUsageRatePercent()).isEqualByComparingTo("1.2");
         assertThat(result.isUniversalBudget()).isFalse();
         verify(billingClient).getBudgets("org", 100, 1, "user", "alice");
+        verify(billingClient, never())
+                .getBudgets("org", 100, 1, "multi_user_customer", "alice");
+    }
+
+    @Test
+    void findByOrgAndUserAndMonth_preserves_usage_when_budget_lookup_fails() {
+        YearMonth currentMonth = YearMonth.now(java.time.ZoneOffset.UTC);
+        WebApplicationException budgetFailure = webAppException(403);
+        when(billingClient.getAiCreditUsage(eq("org"), eq(currentMonth.getYear()),
+                eq(currentMonth.getMonthValue()), anyInt(), eq("alice")))
+                .thenReturn(new AiCreditUsageResponse());
+        when(billingClient.getAiCreditUsage("org", currentMonth.getYear(),
+                currentMonth.getMonthValue(), 1, "alice"))
+                .thenReturn(buildResponse(12, 1));
+        when(billingClient.getBudgets("org", 100, 1, "user", "alice"))
+                .thenThrow(budgetFailure);
+
+        var result = repository.findByOrgAndUserAndMonth("org", "alice", currentMonth);
+
+        assertThat(result.getDailyUsages()).hasSize(1);
+        assertThat(result.getTotalGrossQuantity()).isEqualTo(12);
+        assertThat(result.isUserBudgetLookupUnavailable()).isTrue();
+        assertThat(result.isUserBudgetSet()).isFalse();
         verify(billingClient, never())
                 .getBudgets("org", 100, 1, "multi_user_customer", "alice");
     }

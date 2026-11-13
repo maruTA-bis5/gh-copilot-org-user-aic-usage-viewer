@@ -34,7 +34,7 @@ class MonthlyUsageReportTest {
     }
 
     @Test
-    void userBudgetMetricsUseMonthlyNetCreditsAndCapAtTheBudget() {
+    void userBudgetMetricsCountIncludedGrossCreditsAndCapAtTheBudget() {
         YearMonth month = YearMonth.of(2026, 11);
         DailyUsage day = new DailyUsage(month.atDay(1), List.of(
                 new UsageItem("Copilot", "AI Credits", "model", "credits",
@@ -42,12 +42,24 @@ class MonthlyUsageReportTest {
 
         MonthlyUsageReport report = new MonthlyUsageReport(
                 "org", "alice", month, List.of(day), Instant.EPOCH,
-                null, false, BigDecimal.TEN);
+                null, false, BigDecimal.valueOf(25));
 
         assertThat(report.isUserBudgetSet()).isTrue();
-        assertThat(report.getUserBudgetCapacityCredits()).isEqualByComparingTo("10");
+        assertThat(report.getUserBudgetCapacityCredits()).isEqualByComparingTo("25");
+        assertThat(report.getRemainingUserBudgetCredits()).isEqualByComparingTo("5");
+        assertThat(report.getUserBudgetUsageRatePercent()).isEqualByComparingTo("80");
+        assertThat(report.isUserBudgetBlocked()).isFalse();
+    }
+
+    @Test
+    void zeroCapacityBudgetIsExplicitlyBlockedAndShowsFullyUsedProgress() {
+        MonthlyUsageReport report = new MonthlyUsageReport(
+                "org", "alice", YearMonth.of(2026, 11), List.of(), Instant.EPOCH,
+                null, false, BigDecimal.ZERO);
+
         assertThat(report.getRemainingUserBudgetCredits()).isZero();
         assertThat(report.getUserBudgetUsageRatePercent()).isEqualByComparingTo("100");
+        assertThat(report.isUserBudgetBlocked()).isTrue();
     }
 
     @Test
@@ -70,5 +82,15 @@ class MonthlyUsageReportTest {
         assertThat(report.isUniversalBudget()).isTrue();
         assertThat(report.getRemainingUserBudgetCredits()).isEqualByComparingTo("550");
         assertThat(report.getUserBudgetUsageRatePercent()).isEqualByComparingTo("45");
+    }
+
+    @Test
+    void unavailableBudgetLookupIsDistinctFromNoBudget() {
+        MonthlyUsageReport unavailable = new MonthlyUsageReport(
+                "org", "alice", YearMonth.of(2026, 11), List.of(), Instant.EPOCH,
+                null, false, null, null, false, true);
+
+        assertThat(unavailable.isUserBudgetLookupUnavailable()).isTrue();
+        assertThat(unavailable.isUserBudgetSet()).isFalse();
     }
 }

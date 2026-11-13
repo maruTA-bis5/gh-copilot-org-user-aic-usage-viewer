@@ -99,6 +99,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
         BigDecimal userBudgetCapacityCredits = null;
         BigDecimal userBudgetConsumedCredits = null;
         boolean universalBudget = false;
+        boolean userBudgetLookupUnavailable = false;
         if (yearMonth.equals(YearMonth.now(ZoneOffset.UTC))) {
             Optional<BudgetDto> applicableBudget;
             try {
@@ -107,24 +108,29 @@ public class GitHubApiUsageRepository implements UsageRepository {
                     applicableBudget = findUniversalAiCreditsBudget(org, login);
                     universalBudget = applicableBudget.isPresent();
                 }
+            } catch (GitHubApiException ex) {
+                LOG.warnf("GitHub API failed to retrieve user budgets for %s/%s. HTTP %d: %s",
+                        org, login, ex.getHttpStatus(), ex.getSummary());
+                applicableBudget = Optional.empty();
+                userBudgetLookupUnavailable = true;
             } catch (WebApplicationException ex) {
                 int status = ex.getResponse().getStatus();
                 String summary = buildSafeSummary(status);
-                LOG.errorf("GitHub API failed for user budgets %s/%s after retries. HTTP %d: %s",
+                LOG.warnf("GitHub API failed to retrieve user budgets for %s/%s after retries. HTTP %d: %s",
                         org, login, status, summary);
-                throw new GitHubApiException(status, summary, ex);
+                applicableBudget = Optional.empty();
+                userBudgetLookupUnavailable = true;
             }
             userBudgetCapacityCredits = applicableBudget.map(BudgetDto::getBudgetAmount)
                     .map(GitHubApiUsageRepository::toAiCreditAmount)
                     .orElse(null);
-            if (universalBudget) {
-                userBudgetConsumedCredits = applicableBudget.map(BudgetDto::getConsumedAmount)
-                        .map(GitHubApiUsageRepository::toAiCreditAmount)
-                        .orElse(null);
-            }
+            userBudgetConsumedCredits = applicableBudget.map(BudgetDto::getConsumedAmount)
+                    .map(GitHubApiUsageRepository::toAiCreditAmount)
+                    .orElse(null);
         }
         return new MonthlyUsageReport(org, login, yearMonth, dailyUsages, Instant.now(),
-                null, false, userBudgetCapacityCredits, userBudgetConsumedCredits, universalBudget);
+                null, false, userBudgetCapacityCredits, userBudgetConsumedCredits,
+                universalBudget, userBudgetLookupUnavailable);
     }
 
     @Override
