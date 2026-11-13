@@ -55,11 +55,21 @@ class MonthlyUsageReportTest {
     void zeroCapacityBudgetIsExplicitlyBlockedAndShowsFullyUsedProgress() {
         MonthlyUsageReport report = new MonthlyUsageReport(
                 "org", "alice", YearMonth.of(2026, 11), List.of(), Instant.EPOCH,
-                null, false, BigDecimal.ZERO);
+                null, false, BigDecimal.ZERO, null, false, false, true);
 
         assertThat(report.getRemainingUserBudgetCredits()).isZero();
         assertThat(report.getUserBudgetUsageRatePercent()).isEqualByComparingTo("100");
         assertThat(report.isUserBudgetBlocked()).isTrue();
+    }
+
+    @Test
+    void exhaustedBudgetDoesNotBlockWhenFurtherUsageIsAllowed() {
+        MonthlyUsageReport report = new MonthlyUsageReport(
+                "org", "alice", YearMonth.of(2026, 11), List.of(), Instant.EPOCH,
+                null, false, BigDecimal.TEN, BigDecimal.TEN, false, false, false);
+
+        assertThat(report.getUserBudgetUsageRatePercent()).isEqualByComparingTo("100");
+        assertThat(report.isUserBudgetBlocked()).isFalse();
     }
 
     @Test
@@ -77,11 +87,12 @@ class MonthlyUsageReportTest {
     void universalBudgetUsesApiReportedPerUserConsumption() {
         MonthlyUsageReport report = new MonthlyUsageReport(
                 "org", "alice", YearMonth.of(2026, 11), List.of(), Instant.EPOCH,
-                null, false, BigDecimal.valueOf(1000), BigDecimal.valueOf(450), true);
+                null, false, BigDecimal.valueOf(1000), BigDecimal.valueOf(450), true, false, true);
 
         assertThat(report.isUniversalBudget()).isTrue();
         assertThat(report.getRemainingUserBudgetCredits()).isEqualByComparingTo("550");
         assertThat(report.getUserBudgetUsageRatePercent()).isEqualByComparingTo("45");
+        assertThat(report.isUserBudgetBlocked()).isFalse();
     }
 
     @Test

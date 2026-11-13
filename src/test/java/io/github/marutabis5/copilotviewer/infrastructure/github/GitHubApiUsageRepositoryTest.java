@@ -258,7 +258,8 @@ class GitHubApiUsageRepositoryTest {
                 currentMonth.getMonthValue(), 1, "alice"))
                 .thenReturn(usageResponse);
         when(billingClient.getBudgets("org", 100, 1, "user", "alice"))
-                .thenReturn(buildBudgetsResponse(
+                .thenReturn(buildBudgetsResponseWithEffectiveBudget(
+                        effectiveBudget("user-alice", 10, 0.7),
                         userBudget("alice", 10),
                         userBudget("bob", 20),
                         matchingBudget(30, true)));
@@ -266,9 +267,11 @@ class GitHubApiUsageRepositoryTest {
         var result = repository.findByOrgAndUserAndMonth("org", "alice", currentMonth);
 
         assertThat(result.getUserBudgetCapacityCredits()).isEqualByComparingTo("1000");
-        assertThat(result.getRemainingUserBudgetCredits()).isEqualByComparingTo("988");
-        assertThat(result.getUserBudgetUsageRatePercent()).isEqualByComparingTo("1.2");
+        assertThat(result.getUserBudgetConsumedCredits()).isEqualByComparingTo("70");
+        assertThat(result.getRemainingUserBudgetCredits()).isEqualByComparingTo("930");
+        assertThat(result.getUserBudgetUsageRatePercent()).isEqualByComparingTo("7");
         assertThat(result.isUniversalBudget()).isFalse();
+        assertThat(result.isPreventFurtherUserBudgetUsage()).isTrue();
         verify(billingClient).getBudgets("org", 100, 1, "user", "alice");
         verify(billingClient, never())
                 .getBudgets("org", 100, 1, "multi_user_customer", "alice");
@@ -554,6 +557,7 @@ class GitHubApiUsageRepositoryTest {
 
     private static BudgetDto userBudget(String login, double budgetUsd) {
         BudgetDto budget = new BudgetDto();
+        budget.setId("user-" + login);
         budget.setBudgetScope("user");
         budget.setUser(login);
         budget.setBudgetType("BundlePricing");

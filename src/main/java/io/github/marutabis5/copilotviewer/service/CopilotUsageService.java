@@ -87,7 +87,8 @@ public class CopilotUsageService {
                     report.getUserBudgetCapacityCredits(),
                     report.getUserBudgetConsumedCredits(),
                     report.isUniversalBudget(),
-                    report.isUserBudgetLookupUnavailable());
+                    report.isUserBudgetLookupUnavailable(),
+                    report.isPreventFurtherUserBudgetUsage());
         }
 
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;

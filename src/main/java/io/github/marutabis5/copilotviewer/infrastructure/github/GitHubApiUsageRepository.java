@@ -100,6 +100,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
         BigDecimal userBudgetConsumedCredits = null;
         boolean universalBudget = false;
         boolean userBudgetLookupUnavailable = false;
+        boolean preventFurtherUserBudgetUsage = false;
         if (yearMonth.equals(YearMonth.now(ZoneOffset.UTC))) {
             Optional<BudgetDto> applicableBudget;
             try {
@@ -127,10 +128,13 @@ public class GitHubApiUsageRepository implements UsageRepository {
             userBudgetConsumedCredits = applicableBudget.map(BudgetDto::getConsumedAmount)
                     .map(GitHubApiUsageRepository::toAiCreditAmount)
                     .orElse(null);
+            preventFurtherUserBudgetUsage = applicableBudget
+                    .map(BudgetDto::isPreventFurtherUsage)
+                    .orElse(false);
         }
         return new MonthlyUsageReport(org, login, yearMonth, dailyUsages, Instant.now(),
                 null, false, userBudgetCapacityCredits, userBudgetConsumedCredits,
-                universalBudget, userBudgetLookupUnavailable);
+                universalBudget, userBudgetLookupUnavailable, preventFurtherUserBudgetUsage);
     }
 
     @Override
@@ -414,9 +418,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
                     .filter(dto -> AI_CREDITS.equalsIgnoreCase(dto.getBudgetProductSku()))
                     .findFirst();
             if (budget.isPresent()) {
-                if (MULTI_USER_CUSTOMER_SCOPE.equals(scope)) {
-                    applyEffectiveBudgetConsumption(budget.get(), response.getEffectiveBudget());
-                }
+                applyEffectiveBudgetConsumption(budget.get(), response.getEffectiveBudget());
                 return budget;
             }
             if (!response.isHasNextPage()) {

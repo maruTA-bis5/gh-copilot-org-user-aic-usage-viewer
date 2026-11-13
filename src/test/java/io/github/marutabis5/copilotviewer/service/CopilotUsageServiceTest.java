@@ -260,7 +260,7 @@ class CopilotUsageServiceTest {
         YearMonth ym = YearMonth.now(ZoneOffset.UTC);
         MonthlyUsageReport report = new MonthlyUsageReport(
                 TEST_ORG, "octocat", ym, List.of(), Instant.EPOCH,
-                null, false, BigDecimal.valueOf(1000), BigDecimal.valueOf(250), true);
+                null, false, BigDecimal.valueOf(1000), BigDecimal.valueOf(250), true, false, true);
         when(apiRepository.findByOrgAndUserAndMonth(TEST_ORG, "octocat", ym))
                 .thenReturn(report);
         when(apiRepository.findCopilotBillingInfo(TEST_ORG)).thenReturn(Optional.empty());
@@ -272,6 +272,7 @@ class CopilotUsageServiceTest {
         assertThat(result.getRemainingUserBudgetCredits()).isEqualByComparingTo("750");
         assertThat(result.getUserBudgetUsageRatePercent()).isEqualByComparingTo("25");
         assertThat(result.isUniversalBudget()).isTrue();
+        assertThat(result.isPreventFurtherUserBudgetUsage()).isTrue();
     }
 
     @Test
