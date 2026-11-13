@@ -9,6 +9,7 @@ import io.github.marutabis5.copilotviewer.infrastructure.github.dto.CopilotSeats
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.SeatBreakdownDto;
 import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto;
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
+import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
@@ -298,6 +299,31 @@ class GitHubApiUsageRepositoryTest {
         assertThat(result.isUserBudgetSet()).isFalse();
         verify(billingClient, never())
                 .getBudgets("org", 100, 1, "multi_user_customer", "alice");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"user", "multi_user_customer"})
+    void findByOrgAndUserAndMonth_preserves_usage_when_budget_processing_fails(String failedScope) {
+        YearMonth currentMonth = YearMonth.now(java.time.ZoneOffset.UTC);
+        when(billingClient.getAiCreditUsage(eq("org"), eq(currentMonth.getYear()),
+                eq(currentMonth.getMonthValue()), anyInt(), eq("alice")))
+                .thenReturn(new AiCreditUsageResponse());
+        when(billingClient.getAiCreditUsage("org", currentMonth.getYear(),
+                currentMonth.getMonthValue(), 1, "alice"))
+                .thenReturn(buildResponse(12, 1));
+        if ("multi_user_customer".equals(failedScope)) {
+            when(billingClient.getBudgets("org", 100, 1, "user", "alice"))
+                    .thenReturn(buildBudgetsResponse());
+        }
+        when(billingClient.getBudgets("org", 100, 1, failedScope, "alice"))
+                .thenThrow(new ProcessingException("Budget request failed"));
+
+        var result = repository.findByOrgAndUserAndMonth("org", "alice", currentMonth);
+
+        assertThat(result.getDailyUsages()).hasSize(1);
+        assertThat(result.getTotalGrossQuantity()).isEqualTo(12);
+        assertThat(result.isUserBudgetLookupUnavailable()).isTrue();
+        assertThat(result.isUserBudgetSet()).isFalse();
     }
 
     @Test

@@ -16,6 +16,7 @@ import io.github.marutabis5.copilotviewer.infrastructure.github.dto.UsageItemDto
 import io.github.marutabis5.copilotviewer.service.GitHubApiException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
 import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -119,6 +120,11 @@ public class GitHubApiUsageRepository implements UsageRepository {
                 String summary = buildSafeSummary(status);
                 LOG.warnf("GitHub API failed to retrieve user budgets for %s/%s after retries. HTTP %d: %s",
                         org, login, status, summary);
+                applicableBudget = Optional.empty();
+                userBudgetLookupUnavailable = true;
+            } catch (ProcessingException ex) {
+                // Budget lookup is optional; preserve the usage already fetched even if it fails.
+                LOG.warnf("GitHub API failed to process user budget lookup for %s/%s", org, login);
                 applicableBudget = Optional.empty();
                 userBudgetLookupUnavailable = true;
             }
