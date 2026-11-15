@@ -109,7 +109,7 @@
                                                       rendered="#{usageBean.report.includedCreditsUnavailable}" />
                                         <h:outputText value="#{usageBean.report.includedCredits}"
                                                       rendered="#{usageBean.report.includedCredits ne null}">
-                                            <f:convertNumber maxFractionDigits="0" groupingUsed="true" />
+                                            <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
                                         </h:outputText>
                                     </div>
                                     <div class="label">Seat Included Credits (credits)</div>
@@ -198,7 +198,7 @@
                                       sortBy="#{day.totalGrossQuantity}"
                                       style="width:130px; text-align:right;">
                                 <h:outputText value="#{day.totalGrossQuantity}">
-                                    <f:convertNumber maxFractionDigits="4" groupingUsed="true" />
+                                    <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
                                 </h:outputText>
                             </p:column>
 
@@ -233,17 +233,17 @@
                                     </p:column>
                                     <p:column headerText="Gross Qty" style="width:110px; text-align:right;">
                                         <h:outputText value="#{item.grossQuantity}">
-                                            <f:convertNumber maxFractionDigits="4" />
+                                            <f:convertNumber maxFractionDigits="2" />
                                         </h:outputText>
                                     </p:column>
                                     <p:column headerText="Discount" style="width:100px; text-align:right;">
                                         <h:outputText value="#{item.discountQuantity}">
-                                            <f:convertNumber maxFractionDigits="4" />
+                                            <f:convertNumber maxFractionDigits="2" />
                                         </h:outputText>
                                     </p:column>
                                     <p:column headerText="Additional Qty"  style="width:100px; text-align:right;">
                                         <h:outputText value="#{item.netQuantity}">
-                                            <f:convertNumber maxFractionDigits="4" />
+                                            <f:convertNumber maxFractionDigits="2" />
                                         </h:outputText>
                                     </p:column>
                                     <p:column headerText="Additional Amt ($)" style="width:120px; text-align:right;">
