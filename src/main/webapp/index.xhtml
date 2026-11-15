@@ -97,7 +97,7 @@
                             <div class="summary-card">
                                 <div class="value">
                                     <h:outputText value="#{usageBean.report.totalGrossQuantity}">
-                                        <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                        <f:convertNumber minFractionDigits="2" maxFractionDigits="2" groupingUsed="true" />
                                     </h:outputText>
                                 </div>
                                 <div class="label">Total Credits (gross)</div>
@@ -109,7 +109,7 @@
                                                       rendered="#{usageBean.report.includedCreditsUnavailable}" />
                                         <h:outputText value="#{usageBean.report.includedCredits}"
                                                       rendered="#{usageBean.report.includedCredits ne null}">
-                                            <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                            <f:convertNumber minFractionDigits="2" maxFractionDigits="2" groupingUsed="true" />
                                         </h:outputText>
                                     </div>
                                     <div class="label">Seat Included Credits (credits)</div>
@@ -118,7 +118,7 @@
                             <div class="summary-card">
                                 <div class="value">
                                     <h:outputText value="#{usageBean.report.totalDiscountQuantity}">
-                                        <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                        <f:convertNumber minFractionDigits="2" maxFractionDigits="2" groupingUsed="true" />
                                     </h:outputText>
                                 </div>
                                 <div class="label">Included Credits Used</div>
@@ -126,7 +126,7 @@
                             <div class="summary-card">
                                 <div class="value">
                                     <h:outputText value="#{usageBean.report.totalNetAmount}">
-                                        <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                        <f:convertNumber type="currency" currencySymbol="$" minFractionDigits="2" maxFractionDigits="2" />
                                     </h:outputText>
                                 </div>
                                 <div class="label">Total Additional Amount</div>
@@ -141,7 +141,7 @@
                                     <div class="value">
                                         <ui:fragment rendered="#{usageBean.report.userBudgetSet}">
                                             <h:outputText value="#{usageBean.report.userBudgetCapacityCredits}">
-                                                <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                                <f:convertNumber minFractionDigits="2" maxFractionDigits="2" groupingUsed="true" />
                                             </h:outputText>
                                         </ui:fragment>
                                         <ui:fragment rendered="#{usageBean.report.userBudgetLookupUnavailable}">
@@ -164,7 +164,7 @@
                                     <div class="summary-card">
                                         <div class="value">
                                             <h:outputText value="#{usageBean.report.remainingUserBudgetCredits}">
-                                                <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                                <f:convertNumber minFractionDigits="2" maxFractionDigits="2" groupingUsed="true" />
                                             </h:outputText>
                                         </div>
                                         <div class="label">Remaining Credits</div>
@@ -198,7 +198,7 @@
                                       sortBy="#{day.totalGrossQuantity}"
                                       style="width:130px; text-align:right;">
                                 <h:outputText value="#{day.totalGrossQuantity}">
-                                    <f:convertNumber maxFractionDigits="2" groupingUsed="true" />
+                                    <f:convertNumber minFractionDigits="2" maxFractionDigits="2" groupingUsed="true" />
                                 </h:outputText>
                             </p:column>
 
@@ -206,7 +206,7 @@
                                       sortBy="#{day.totalNetAmount}"
                                       style="width:140px; text-align:right;">
                                 <h:outputText value="#{day.totalNetAmount}">
-                                    <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                    <f:convertNumber type="currency" currencySymbol="$" minFractionDigits="2" maxFractionDigits="2" />
                                 </h:outputText>
                             </p:column>
 
@@ -233,22 +233,22 @@
                                     </p:column>
                                     <p:column headerText="Gross Qty" style="width:110px; text-align:right;">
                                         <h:outputText value="#{item.grossQuantity}">
-                                            <f:convertNumber maxFractionDigits="2" />
+                                            <f:convertNumber minFractionDigits="2" maxFractionDigits="2" />
                                         </h:outputText>
                                     </p:column>
                                     <p:column headerText="Discount" style="width:100px; text-align:right;">
                                         <h:outputText value="#{item.discountQuantity}">
-                                            <f:convertNumber maxFractionDigits="2" />
+                                            <f:convertNumber minFractionDigits="2" maxFractionDigits="2" />
                                         </h:outputText>
                                     </p:column>
                                     <p:column headerText="Additional Qty"  style="width:100px; text-align:right;">
                                         <h:outputText value="#{item.netQuantity}">
-                                            <f:convertNumber maxFractionDigits="2" />
+                                            <f:convertNumber minFractionDigits="2" maxFractionDigits="2" />
                                         </h:outputText>
                                     </p:column>
                                     <p:column headerText="Additional Amt ($)" style="width:120px; text-align:right;">
                                         <h:outputText value="#{item.netAmount}">
-                                            <f:convertNumber type="currency" currencySymbol="$" maxFractionDigits="4" />
+                                            <f:convertNumber type="currency" currencySymbol="$" minFractionDigits="2" maxFractionDigits="2" />
                                         </h:outputText>
                                     </p:column>
                                 </p:dataTable>
