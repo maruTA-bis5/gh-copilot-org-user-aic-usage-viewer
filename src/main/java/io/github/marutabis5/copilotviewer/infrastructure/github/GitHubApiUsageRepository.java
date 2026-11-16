@@ -383,7 +383,7 @@ public class GitHubApiUsageRepository implements UsageRepository {
     private Optional<BudgetDto> findOrganizationAiCreditsBudget(String org) {
         int page = 1;
         while (true) {
-            BudgetsResponse response = self.fetchBudgetsWithRetry(org, page, ORGANIZATION_SCOPE, null);
+            BudgetsResponse response = self.fetchBudgetsWithRetry(org, page, null, null);
             Optional<BudgetDto> budget = response.getBudgets().stream()
                     .filter(dto -> ORGANIZATION_SCOPE.equalsIgnoreCase(dto.getBudgetScope()))
                     .filter(dto -> BUNDLE_PRICING.equalsIgnoreCase(dto.getBudgetType()))

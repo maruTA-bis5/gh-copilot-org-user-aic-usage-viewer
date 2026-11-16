@@ -190,7 +190,7 @@ class GitHubApiUsageRepositoryTest {
     void findOrgCreditPoolUsage_maps_matching_organization_ai_credit_budget() {
         when(billingClient.getAiCreditUsage("org", 2026, 9, null))
                 .thenReturn(buildResponse(12, 6.0));
-        when(billingClient.getBudgets("org", 100, 1, "organization", null))
+        when(billingClient.getBudgets("org", 100, 1, null, null))
                 .thenReturn(buildBudgetsResponse(matchingBudget(10, true), repositoryBudget()));
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
@@ -207,10 +207,26 @@ class GitHubApiUsageRepositoryTest {
     }
 
     @Test
+    void findOrgCreditPoolUsage_maps_organization_ai_credit_budget_before_usage_starts() {
+        when(billingClient.getAiCreditUsage("org", 2026, 9, null))
+                .thenReturn(new AiCreditUsageResponse());
+        when(billingClient.getBudgets("org", 100, 1, null, null))
+                .thenReturn(buildBudgetsResponse(matchingBudget(10, true)));
+
+        var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
+
+        assertThat(result.getTotalNetQuantity()).isEqualByComparingTo("0");
+        assertThat(result.isAdditionalBudgetSet()).isTrue();
+        assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1000");
+        assertThat(result.isPreventFurtherUsage()).isTrue();
+        verify(billingClient).getBudgets("org", 100, 1, null, null);
+    }
+
+    @Test
     void findOrgCreditPoolUsage_leaves_budget_unset_when_no_matching_org_ai_credit_budget_exists() {
         when(billingClient.getAiCreditUsage("org", 2026, 9, null))
                 .thenReturn(buildResponse(12, 6.0));
-        when(billingClient.getBudgets("org", 100, 1, "organization", null))
+        when(billingClient.getBudgets("org", 100, 1, null, null))
                 .thenReturn(buildBudgetsResponse(repositoryBudget()));
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
@@ -224,17 +240,17 @@ class GitHubApiUsageRepositoryTest {
     void findOrgCreditPoolUsage_follows_budget_pagination_until_match_is_found() {
         when(billingClient.getAiCreditUsage("org", 2026, 9, null))
                 .thenReturn(buildResponse(12, 6.0));
-        when(billingClient.getBudgets("org", 100, 1, "organization", null))
+        when(billingClient.getBudgets("org", 100, 1, null, null))
                 .thenReturn(buildBudgetsResponse(true, repositoryBudget()));
-        when(billingClient.getBudgets("org", 100, 2, "organization", null))
+        when(billingClient.getBudgets("org", 100, 2, null, null))
                 .thenReturn(buildBudgetsResponse(false, matchingBudget(15, false)));
 
         var result = repository.findOrgCreditPoolUsage("org", YearMonth.of(2026, 9));
 
         assertThat(result.getAdditionalBudgetCredits()).isEqualByComparingTo("1500.0");
         assertThat(result.isPreventFurtherUsage()).isFalse();
-        verify(billingClient).getBudgets("org", 100, 1, "organization", null);
-        verify(billingClient).getBudgets("org", 100, 2, "organization", null);
+        verify(billingClient).getBudgets("org", 100, 1, null, null);
+        verify(billingClient).getBudgets("org", 100, 2, null, null);
     }
 
     @Test
